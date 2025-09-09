@@ -25,19 +25,29 @@ import { PageWrapper } from "@/components/layout/page-wrapper";
 const userSchema = z.object({
   username: z.string().min(3, "اسم المستخدم يجب أن يكون 3 أحرف على الأقل"),
   password: z.string().optional(),
-  role: z.enum(["admin", "head"], { required_error: "نوع المستخدم مطلوب" }),
+  role: z.literal("admin"),
   phone: z.string().optional(),
-  identityId: z.string().optional(),
   isProtected: z.boolean().optional(),
 });
 
+const headSchema = z.object({
+  username: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
+  husbandName: z.string().min(1, "الاسم مطلوب"),
+  husbandBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
+  husbandJob: z.string().min(1, "المهنة مطلوبة"),
+  primaryPhone: z.string().min(1, "رقم الجوال مطلوب"),
+  secondaryPhone: z.string().optional(),
+});
+
 type UserFormData = z.infer<typeof userSchema>;
+type HeadFormData = z.infer<typeof headSchema>;
 
 export default function Users() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [isHeadDialogOpen, setIsHeadDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
@@ -57,19 +67,17 @@ export default function Users() {
     }
   }, [settings.siteTitle, settings.language]);
 
-  // Only allow root users or dual-role admins to access this page
-  const isDualRole = currentUser?.role === 'admin' && /^\d+$/.test(currentUser?.username || '');
-  if (currentUser?.role !== 'root' && !isDualRole) {
+  // Only allow root users and admins to access this page
+  if (currentUser?.role !== 'root' && currentUser?.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <PageWrapper>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="h-12 w-12 text-accent mx-auto mb-4" />
             <div className="text-lg text-muted-foreground">غير مصرح لك بالوصول لهذه الصفحة</div>
           </div>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
@@ -86,6 +94,19 @@ export default function Users() {
       password: "",
       role: "admin",
       phone: "",
+      isProtected: false,
+    },
+  });
+
+  const headForm = useForm<HeadFormData>({
+    resolver: zodResolver(headSchema),
+    defaultValues: {
+      username: "",
+      husbandName: "",
+      husbandBirthDate: "",
+      husbandJob: "",
+      primaryPhone: "",
+      secondaryPhone: "",
     },
   });
 
@@ -107,6 +128,41 @@ export default function Users() {
     onError: (error: Error) => {
       toast({
         title: "خطأ في الإنشاء",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createHeadMutation = useMutation({
+    mutationFn: async (data: HeadFormData) => {
+      const requestData = {
+        user: {}, // No password needed for heads created by admin
+        family: {
+          husbandID: data.username,
+          husbandName: data.husbandName,
+          husbandBirthDate: data.husbandBirthDate,
+          husbandJob: data.husbandJob,
+          primaryPhone: data.primaryPhone,
+          secondaryPhone: data.secondaryPhone
+        },
+        members: []
+      };
+      const res = await apiRequest("POST", "/api/register-family", requestData);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsHeadDialogOpen(false);
+      headForm.reset();
+      toast({
+        title: "تم إنشاء رب الأسرة",
+        description: "تم إنشاء رب الأسرة الجديد بنجاح",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطأ في إنشاء رب الأسرة",
         description: error.message,
         variant: "destructive",
       });
@@ -277,26 +333,21 @@ export default function Users() {
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const onSubmit = (data: UserFormData) => {
-    // For new user, password required and must match policy
-    if (!editingUser) {
-      if (!data.password) {
-        form.setError("password", { type: "manual", message: "كلمة المرور مطلوبة" });
-        return;
-      }
+    // For new admin user, password is required
+    if (!editingUser && !data.password) {
+      form.setError("password", { type: "manual", message: "كلمة المرور مطلوبة للمشرفين" });
+      return;
+    }
+    
+    // If password is provided, validate it
+    if (data.password) {
       const passwordErrors = validatePasswordWithPolicy(data.password, settings);
       if (passwordErrors.length > 0) {
         passwordErrors.forEach(msg => form.setError("password", { type: "manual", message: msg }));
         return;
       }
     }
-    // For edit, if password entered, must match policy
-    if (editingUser && data.password && data.password.length > 0) {
-      const passwordErrors = validatePasswordWithPolicy(data.password, settings);
-      if (passwordErrors.length > 0) {
-        passwordErrors.forEach(msg => form.setError("password", { type: "manual", message: msg }));
-        return;
-      }
-    }
+
     if (editingUser) {
       const updateData: Partial<UserFormData> = { ...data };
       if (!data.password) {
@@ -306,6 +357,10 @@ export default function Users() {
     } else {
       createUserMutation.mutate(data);
     }
+  };
+
+  const onHeadSubmit = (data: HeadFormData) => {
+    createHeadMutation.mutate(data);
   };
 
   const handleEdit = (user: any) => {
@@ -325,11 +380,23 @@ export default function Users() {
     form.reset({
       username: "",
       password: "",
-      role: "head", // or your default
+      role: "admin",
       phone: "",
       isProtected: false,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleAddHead = () => {
+    headForm.reset({
+      username: "",
+      husbandName: "",
+      husbandBirthDate: "",
+      husbandJob: "",
+      primaryPhone: "",
+      secondaryPhone: "",
+    });
+    setIsHeadDialogOpen(true);
   };
 
   const handleDelete = (user: any) => {
@@ -413,10 +480,20 @@ export default function Users() {
               <p className="text-sm sm:text-base text-muted-foreground">إدارة المستخدمين وصلاحياتهم</p>
             </div>
             
-            <Button onClick={handleAdd} className="flex items-center gap-2 w-full sm:w-auto">
-              <UserPlus className="h-4 w-4" />
-              <span className="sm:inline">إضافة مستخدم جديد</span>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={handleAdd} className="flex items-center gap-2 w-full sm:w-auto">
+                <Shield className="h-4 w-4" />
+                <span className="sm:inline">إضافة مشرف</span>
+              </Button>
+              <Button 
+                onClick={handleAddHead}
+                variant="outline" 
+                className="flex items-center gap-2 w-full sm:w-auto"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span className="sm:inline">إضافة رب أسرة</span>
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 mb-8">
@@ -539,7 +616,7 @@ export default function Users() {
                               {isDeleted ? (
                                 <Badge variant="destructive" className="text-xs">محذوف</Badge>
                               ) : isLocked ? (
-                                <Badge variant="warning" className="text-xs"><Lock className="inline w-3 h-3 mr-1" />محظور مؤقتاً</Badge>
+                                <Badge variant="destructive" className="text-xs"><Lock className="inline w-3 h-3 mr-1" />محظور مؤقتاً</Badge>
                               ) : (
                                 <Badge variant="outline" className="text-xs">نشط</Badge>
                               )}
@@ -608,8 +685,11 @@ export default function Users() {
             <DialogContent className="max-w-[95vw] w-full sm:max-w-md lg:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {editingUser ? "تعديل المستخدم" : "إضافة مستخدم جديد"}
+                  {editingUser ? "تعديل المشرف" : "إضافة مشرف جديد"}
                 </DialogTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  الحقول المتاحة: اسم المستخدم، كلمة المرور، رقم الجوال، حالة الحماية
+                </p>
               </DialogHeader>
               
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -617,44 +697,26 @@ export default function Users() {
                   <Label htmlFor="username" className="text-sm sm:text-base">اسم المستخدم *</Label>
                   <Input
                     id="username"
-                    placeholder="اسم المستخدم"
+                    placeholder="أدخل اسم المستخدم (مثال: admin01)"
                     {...form.register("username", { required: true })}
                     className="mt-1"
                   />
+                  {form.formState.errors.username && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{form.formState.errors.username.message}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="password" className="text-sm sm:text-base">كلمة المرور (اتركها فارغة للاحتفاظ بالحالية)</Label>
+                  <Label htmlFor="password" className="text-sm sm:text-base">كلمة المرور {!editingUser ? "*" : "(اتركها فارغة للاحتفاظ بالحالية)"}</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="أدخل كلمة المرور"
                     {...form.register("password")}
                     className="mt-1"
                   />
                   {form.formState.errors.password && (
                     <p className="text-xs sm:text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="role" className="text-sm sm:text-base">نوع المستخدم *</Label>
-                  <Select
-                    value={form.watch("role")}
-                    onValueChange={(value: "admin" | "head") => form.setValue("role", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">مشرف</SelectItem>
-                      <SelectItem value="head">رب أسرة</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.role && (
-                    <p className="text-xs sm:text-sm text-destructive mt-1">
-                      {form.formState.errors.role.message}
-                    </p>
                   )}
                 </div>
 
@@ -665,8 +727,8 @@ export default function Users() {
                   </div>
                 )}
 
-                {/* Visual badge for dual-role only when editing a dual-role user */}
-                {editingUser && editingUser.role === 'admin' && editingUser.identityId && (
+                {/* Visual badge for dual-role only when editing a dual-role user with numeric username */}
+                {editingUser && editingUser.role === 'admin' && /^\d+$/.test(editingUser.username) && (
                   <div className="mb-2">
                     <span className="inline-block bg-secondary/10 text-secondary px-3 py-1 rounded text-xs font-bold">مشرف + رب أسرة</span>
                   </div>
@@ -676,11 +738,12 @@ export default function Users() {
                   <Label htmlFor="phone" className="text-sm sm:text-base">رقم الجوال</Label>
                   <Input
                     id="phone"
-                    placeholder="0592524815"
+                    placeholder="أدخل رقم الجوال (مثال: 0592524815)"
                     {...form.register("phone")}
                     className="mt-1"
                   />
                 </div>
+
 
                 
                 {currentUser?.role === 'root' && editingUser && editingUser.id !== currentUser.id && (
@@ -772,6 +835,114 @@ export default function Users() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Add Head User Dialog */}
+          <Dialog open={isHeadDialogOpen} onOpenChange={setIsHeadDialogOpen}>
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-md lg:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>إضافة رب أسرة جديد</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  أدخل البيانات الأساسية لرب الأسرة الجديد
+                </p>
+              </DialogHeader>
+              
+              <form onSubmit={headForm.handleSubmit(onHeadSubmit)} className="space-y-4">
+                <div>
+                  <Label htmlFor="head-username" className="text-sm sm:text-base">رقم الهوية *</Label>
+                  <Input
+                    id="head-username"
+                    placeholder="أدخل رقم الهوية (9 أرقام)"
+                    {...headForm.register("username", { required: true })}
+                    className="mt-1"
+                  />
+                  {headForm.formState.errors.username && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{headForm.formState.errors.username.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="head-name" className="text-sm sm:text-base">الاسم الرباعي *</Label>
+                  <Input
+                    id="head-name"
+                    placeholder="أدخل الاسم الرباعي"
+                    {...headForm.register("husbandName", { required: true })}
+                    className="mt-1"
+                  />
+                  {headForm.formState.errors.husbandName && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{headForm.formState.errors.husbandName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="head-birthdate" className="text-sm sm:text-base">تاريخ الميلاد *</Label>
+                  <Input
+                    id="head-birthdate"
+                    type="date"
+                    {...headForm.register("husbandBirthDate", { required: true })}
+                    className="mt-1"
+                  />
+                  {headForm.formState.errors.husbandBirthDate && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{headForm.formState.errors.husbandBirthDate.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="head-job" className="text-sm sm:text-base">المهنة *</Label>
+                  <Input
+                    id="head-job"
+                    placeholder="أدخل المهنة"
+                    {...headForm.register("husbandJob", { required: true })}
+                    className="mt-1"
+                  />
+                  {headForm.formState.errors.husbandJob && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{headForm.formState.errors.husbandJob.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="head-primary-phone" className="text-sm sm:text-base">رقم الجوال الأساسي *</Label>
+                  <Input
+                    id="head-primary-phone"
+                    placeholder="أدخل رقم الجوال (مثال: 0592524815)"
+                    {...headForm.register("primaryPhone", { required: true })}
+                    className="mt-1"
+                  />
+                  {headForm.formState.errors.primaryPhone && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">{headForm.formState.errors.primaryPhone.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="head-secondary-phone" className="text-sm sm:text-base">رقم الجوال البديل</Label>
+                  <Input
+                    id="head-secondary-phone"
+                    placeholder="أدخل رقم الجوال البديل"
+                    {...headForm.register("secondaryPhone")}
+                    className="mt-1"
+                  />
+                </div>
+
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:space-x-2 sm:space-x-reverse pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsHeadDialogOpen(false)}
+                    className="w-full sm:w-auto order-2 sm:order-1"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createHeadMutation.isPending}
+                    className="w-full sm:w-auto order-1 sm:order-2"
+                  >
+                    {createHeadMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
               </div>
     </PageWrapper>
   );

@@ -168,9 +168,9 @@ export function getDamageDescriptionInArabic(damageType: string): string {
 export function getSocialStatusInArabic(status: string): string {
   const socialStatuses: Record<string, string> = {
     married: "متزوج",
+    polygamous: "متعدد الزوجات",
     divorced: "مطلق",
-    widowed: "أرمل",
-  };
+    widowed: "أرملة",  };
 
   return socialStatuses[status] || status;
 }
@@ -198,10 +198,10 @@ export function validatePasswordWithPolicy(password: string, settings: {
   if (password.length < minLength) {
     errors.push(`كلمة المرور يجب أن تكون ${minLength} أحرف على الأقل`);
   }
-  if (requireUppercase && !/[A-Z -]/.test(password)) {
+  if (requireUppercase && !/[A-Z]/.test(password)) {
     errors.push("كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل");
   }
-  if (requireLowercase && !/[a-z -]/.test(password)) {
+  if (requireLowercase && !/[a-z]/.test(password)) {
     errors.push("كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل");
   }
   if (requireNumbers && !/\d/.test(password)) {
