@@ -18,7 +18,7 @@ import { fetchApi } from '@/lib/api';
 import { CalendarIcon, PlusIcon, UsersIcon, BellIcon, CheckCircleIcon, XCircleIcon, ClockIcon, DollarSignIcon, MapPinIcon, CalendarDaysIcon, UserIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { useSettings } from "@/hooks/use-settings";
+import { useSettingsContext } from "@/App";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
 interface SupportVoucher {
@@ -73,7 +73,7 @@ export default function SupportVouchers() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { settings } = useSettings();
+  const { settings } = useSettingsContext();
   
   useEffect(() => {
     if (settings.siteTitle) {
@@ -125,7 +125,7 @@ export default function SupportVouchers() {
 
   // Fetch families for recipient selection
   const { data: families } = useQuery({
-    queryKey: ['admin-families'],
+    queryKey: ['/api/admin/families'],
     queryFn: async () => {
       const response = await fetchApi('/api/admin/families');
       if (!response.ok) throw new Error('Failed to fetch families');
@@ -135,9 +135,9 @@ export default function SupportVouchers() {
 
   // Fetch all users to get role information
   const { data: users } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['/api/admin/users'],
     queryFn: async () => {
-      const response = await fetchApi('/api/users');
+      const response = await fetchApi('/api/admin/users');
       if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     }
