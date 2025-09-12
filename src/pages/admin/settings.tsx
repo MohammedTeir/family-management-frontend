@@ -142,7 +142,7 @@ const SettingsPage = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      // Prepare all settings in a single object for bulk save
+      // Prepare settings object for bulk save
       const settingsToSave = {
         siteName: settings.siteName || "",
         siteTitle: settings.siteTitle || "",
@@ -164,7 +164,7 @@ const SettingsPage = () => {
         sessionTimeout: (settings.sessionTimeout ?? 60).toString(),
       };
 
-      // Make a single bulk save API call
+      // Use bulk save endpoint
       const response = await fetchApi("/api/settings/bulk", {
         method: "POST",
         headers: {
@@ -173,75 +173,34 @@ const SettingsPage = () => {
         body: JSON.stringify({ settings: settingsToSave }),
       });
 
-      if (!response.ok) {
-        throw new Error("فشل في حفظ الإعدادات");
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "نجح",
+          description: result.message,
+        });
+      } else {
+        const errorResult = await response.json();
+        toast({
+          title: "تحذير",
+          description: errorResult.message || "فشل في حفظ بعض الإعدادات",
+          variant: "destructive",
+        });
       }
-
-      toast({
-        title: "نجح",
-        description: "تم حفظ الإعدادات بنجاح",
-      });
 
       // Update document title if site title changed
       if (settings.siteTitle) {
         document.title = settings.siteTitle;
       }
       applyThemeSettings(settings); // Apply theme settings after saving
-    } catch (error) {
-      // Fallback to individual saves if bulk save is not available
-      console.warn("Bulk save failed, falling back to individual saves:", error);
       
-      try {
-        // Save text settings
-        const settingsToSave = [
-          { key: "siteName", value: settings.siteName || "", description: "اسم الموقع/التطبيق" },
-          { key: "siteTitle", value: settings.siteTitle || "", description: "عنوان الموقع" },
-          { key: "authPageTitle", value: settings.authPageTitle || "", description: "عنوان صفحة تسجيل الدخول" },
-          { key: "authPageSubtitle", value: settings.authPageSubtitle || "", description: "وصف صفحة تسجيل الدخول" },
-          { key: "siteLogo", value: logoFile ? logoPreview : (settings.siteLogo || ""), description: "شعار الموقع" },
-          { key: "authPageIcon", value: settings.authPageIcon || "", description: "أيقونة صفحة تسجيل الدخول" },
-          { key: "primaryColor", value: settings.primaryColor || "", description: "اللون الأساسي" },
-          { key: "secondaryColor", value: settings.secondaryColor || "", description: "اللون الثانوي" },
-          { key: "themeMode", value: settings.themeMode || "", description: "نمط المظهر" },
-          { key: "fontFamily", value: settings.fontFamily || "", description: "نوع الخط" },
-          { key: "minPasswordLength", value: (settings.minPasswordLength ?? 8).toString(), description: "الحد الأدنى لطول كلمة المرور" },
-          { key: "requireUppercase", value: Boolean(settings.requireUppercase).toString(), description: "تطلب أحرف كبيرة" },
-          { key: "requireLowercase", value: Boolean(settings.requireLowercase).toString(), description: "تطلب أحرف صغيرة" },
-          { key: "requireNumbers", value: Boolean(settings.requireNumbers).toString(), description: "تطلب أرقام" },
-          { key: "requireSpecialChars", value: Boolean(settings.requireSpecialChars).toString(), description: "تطلب رموز خاصة" },
-          { key: "maxLoginAttempts", value: (settings.maxLoginAttempts ?? 5).toString(), description: "الحد الأقصى لمحاولات تسجيل الدخول" },
-          { key: "lockoutDuration", value: (settings.lockoutDuration ?? 15).toString(), description: "مدة الحظر بالدقائق" },
-          { key: "sessionTimeout", value: (settings.sessionTimeout ?? 60).toString(), description: "مدة انتهاء الجلسة بالدقائق" },
-        ];
-
-        // Save all settings individually as fallback
-        for (const setting of settingsToSave) {
-          await fetchApi("/api/settings", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(setting),
-          });
-        }
-
-        toast({
-          title: "نجح",
-          description: "تم حفظ الإعدادات بنجاح",
-        });
-
-        // Update document title if site title changed
-        if (settings.siteTitle) {
-          document.title = settings.siteTitle;
-        }
-        applyThemeSettings(settings); // Apply theme settings after saving
-      } catch (fallbackError) {
-        toast({
-          title: "خطأ",
-          description: "فشل في حفظ الإعدادات",
-          variant: "destructive",
-        });
-      }
+    } catch (error) {
+      console.error("Settings save error:", error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حفظ الإعدادات",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
