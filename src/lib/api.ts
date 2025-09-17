@@ -51,3 +51,59 @@ export const apiUrl = (endpoint: string) => {
   const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
   return `${baseUrl}/${cleanEndpoint}`;
 };
+
+// Backward compatibility function for existing fetchApi calls
+export const fetchApi = async (endpoint: string, options?: RequestInit): Promise<Response> => {
+  try {
+    const method = (options?.method || 'GET') as any;
+    const data = options?.body;
+    
+    // Handle different body types
+    let requestData = data;
+    if (data && typeof data === 'string' && data !== '' && options?.headers?.['Content-Type']?.includes('application/json')) {
+      try {
+        requestData = JSON.parse(data);
+      } catch {
+        requestData = data;
+      }
+    }
+
+    const axiosResponse = await apiClient.request({
+      url: endpoint,
+      method,
+      data: requestData,
+      headers: options?.headers as Record<string, string>,
+      signal: options?.signal,
+    });
+    
+    // Create a Response-like object for compatibility
+    const response = new Response(JSON.stringify(axiosResponse.data), {
+      status: axiosResponse.status,
+      statusText: axiosResponse.statusText,
+      headers: new Headers(axiosResponse.headers as Record<string, string>),
+    });
+    
+    // Add ok property for compatibility
+    (response as any).ok = axiosResponse.status >= 200 && axiosResponse.status < 300;
+    
+    return response;
+  } catch (error: any) {
+    if (axios.isAxiosError(error) && error.response) {
+      // Axios error with response
+      const errorResponse = new Response(
+        error.response.data ? JSON.stringify(error.response.data) : error.response.statusText,
+        {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: new Headers(error.response.headers as Record<string, string>),
+        }
+      );
+      
+      (errorResponse as any).ok = false;
+      return errorResponse;
+    } else {
+      // Network error or other axios error
+      throw new Error(error.message || 'Network error');
+    }
+  }
+};
