@@ -8,7 +8,6 @@ import { insertUserSchema, User as SelectUser, InsertUser } from "../types/schem
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { attemptSessionRecovery, clearAllCookies, debugSessionInfo } from "../lib/session-recovery";
 
 // Extend AuthContextType
 interface AuthContextType {
@@ -62,85 +61,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const chooseDashboard = (dashboard: "admin" | "head") => setCurrentDashboard(dashboard);
 
-  // Enhanced session recovery and debugging
+  // Attempt to refresh user data on mount to verify session
   useEffect(() => {
     if (!user && !isLoading) {
-      console.log('🔍 No user found, attempting session recovery...');
-      debugSessionInfo();
-      
-      // Try session recovery first
-      attemptSessionRecovery().then((recovered) => {
-        if (recovered) {
-          refetch();
-        } else {
-          console.log('❌ Session recovery failed, user needs to login again');
-        }
-      });
+      refetch();
     }
   }, [user, isLoading, refetch]);
 
-  // Listen for session events from axios interceptors
-  useEffect(() => {
-    const handleAuthError = (event: CustomEvent) => {
-      console.log('🔒 Auth error event received:', event.detail);
-      // Force user data refresh
-      queryClient.setQueryData(["/api/user"], null);
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-    };
-
-    const handleSessionExpired = (event: CustomEvent) => {
-      console.log('⏰ Session expired event received');
-      // Clear all user data and redirect to auth
-      queryClient.setQueryData(["/api/user"], null);
-      queryClient.setQueryData(["/api/family"], null);
-      queryClient.clear();
-      setLocation("/auth");
-    };
-
-    // Add event listeners
-    window.addEventListener('auth-error', handleAuthError as EventListener);
-    window.addEventListener('session-expired', handleSessionExpired as EventListener);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('auth-error', handleAuthError as EventListener);
-      window.removeEventListener('session-expired', handleSessionExpired as EventListener);
-    };
-  }, [queryClient, setLocation]);
-
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log('🔐 Attempting login...');
-      debugSessionInfo();
-      
       // Clear any existing user data before login attempt
       queryClient.setQueryData(["/api/user"], null);
       queryClient.setQueryData(["/api/family"], null);
-      
-      const res = await apiRequest("POST", "/api/login", credentials);
-      const userData = await res.json();
-      
-      console.log('✅ Login successful:', userData);
-      debugSessionInfo();
-      
-      return userData;
+      const response = await apiRequest("POST", "/api/login", credentials);
+      return response.data;
     },
     onSuccess: (user: SelectUser) => {
-      console.log('🎉 Login mutation success, setting user data...');
       queryClient.setQueryData(["/api/user"], user);
       // Invalidate family data to trigger refetch for head users
       queryClient.invalidateQueries({ queryKey: ["/api/family"] });
-      
-      // Verify session immediately after login
-      setTimeout(() => {
-        console.log('🔍 Verifying session after login...');
-        refetch();
-      }, 1000);
     },
     onError: (error: Error) => {
-      console.error('❌ Login failed:', error);
-      debugSessionInfo();
-      
       // Ensure user data is cleared on login failure
       queryClient.setQueryData(["/api/user"], null);
       queryClient.setQueryData(["/api/family"], null);
@@ -157,8 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      const response = await apiRequest("POST", "/api/register", credentials);
+      return response.data;
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
