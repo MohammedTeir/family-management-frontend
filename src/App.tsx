@@ -33,6 +33,8 @@ import ImportHeads from "./pages/admin/import-heads";
 import { useEffect, useState, createContext, useContext } from "react";
 import { useAuth } from "./hooks/use-auth"; // adjust import as needed
 import { fetchApi } from "./lib/api";
+import "./lib/session-recovery"; // Import session recovery utilities
+import "./lib/test-connection"; // Import connection testing
 
 
 function Router() {
