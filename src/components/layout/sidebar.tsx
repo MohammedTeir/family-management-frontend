@@ -1,18 +1,20 @@
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  BarChart3, 
-  Users, 
-  FileText, 
-  Bell, 
-  Download, 
+import {
+  BarChart3,
+  Users,
+  FileText,
+  Bell,
+  Download,
   UserCog,
   Settings,
   Activity,
   Gift,
-  Upload
+  Upload,
+  Baby,
+  UserRound
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sidebar,
@@ -37,6 +39,16 @@ const adminNavItems = [
     title: "الأسر المسجلة",
     href: "/admin/families",
     icon: Users,
+  },
+  {
+    title: "اليتامى",
+    href: "/admin/orphans",
+    icon: Baby,
+  },
+  {
+    title: "أفراد الأسر",
+    href: "/admin/members",
+    icon: UserRound,
   },
   {
     title: "الطلبات",
@@ -90,7 +102,8 @@ const adminNavItems = [
 export function AppSidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
-  const { settings } = useSettingsContext();
+  const settingsContext = useSettingsContext();
+  const settings = settingsContext?.settings || {};
   const { state } = useSidebar();
   const isMobile = useIsMobile();
 

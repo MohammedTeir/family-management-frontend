@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { Users, Plus, Edit, Trash2 } from "lucide-react";
 import { Link } from "wouter";
-import { getSocialStatusInArabic } from "@/lib/utils";
+import { getSocialStatusInArabic, getDamageDescriptionInArabic, getBranchInArabic } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -24,7 +24,7 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { isChild, calculateDetailedAge } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Header } from "@/components/layout/header";
 
@@ -33,46 +33,122 @@ const familySchema = z.object({
   husbandID: z.string({ required_error: "رقم الهوية مطلوب", invalid_type_error: "رقم الهوية يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
   husbandBirthDate: z.string({ required_error: "تاريخ الميلاد مطلوب", invalid_type_error: "تاريخ الميلاد يجب أن يكون نص" }).min(1, "تاريخ الميلاد مطلوب"),
   husbandJob: z.string({ required_error: "المهنة مطلوبة", invalid_type_error: "المهنة يجب أن تكون نص" }).min(1, "المهنة مطلوبة"),
-  primaryPhone: z.string({ required_error: "رقم الجوال مطلوب", invalid_type_error: "رقم الجوال يجب أن يكون نص" }).min(1, "رقم الجوال مطلوب"),
+  primaryPhone: z.string({ required_error: "رقم الجوال مطلوب", invalid_type_error: "رقم الجوال يجب أن يكون نص" }).regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
   secondaryPhone: z.string({ invalid_type_error: "رقم الجوال البديل يجب أن يكون نص" }).nullable().optional(),
+  spouseName: z.string({ invalid_type_error: "اسم الزوج/ة يجب أن يكون نص" }).nullable().optional(),
+  spouseID: z.string({ invalid_type_error: "رقم هوية الزوج/ة يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").nullable().optional(),
+  spouseBirthDate: z.string({ invalid_type_error: "تاريخ ميلاد الزوج/ة يجب أن يكون نص" }).nullable().optional(),
+  spouseJob: z.string({ invalid_type_error: "مهنة الزوج/ة يجب أن تكون نص" }).nullable().optional(),
+  spousePregnant: z.boolean({ invalid_type_error: "حقل الحمل يجب أن يكون صحيح أو خطأ" }).default(false),
   originalResidence: z.string({ required_error: "السكن الأصلي مطلوب", invalid_type_error: "السكن الأصلي يجب أن يكون نص" }).min(1, "السكن الأصلي مطلوب"),
   currentHousing: z.string({ required_error: "السكن الحالي مطلوب", invalid_type_error: "السكن الحالي يجب أن يكون نص" }).min(1, "السكن الحالي مطلوب"),
   isDisplaced: z.boolean({ invalid_type_error: "حقل النزوح يجب أن يكون صحيح أو خطأ" }).default(false),
   displacedLocation: z.string({ invalid_type_error: "موقع النزوح يجب أن يكون نص" }).nullable().optional(),
   isAbroad: z.boolean({ invalid_type_error: "حقل الاغتراب يجب أن يكون صحيح أو خطأ" }).default(false),
-  warDamage2024: z.boolean({ invalid_type_error: "حقل أضرار 2024 يجب أن يكون صحيح أو خطأ" }).default(false),
+  warDamage2023: z.boolean({ invalid_type_error: "حقل أضرار 2023 يجب أن يكون صحيح أو خطأ" }).default(false),
   warDamageDescription: z.string({ invalid_type_error: "وصف الأضرار يجب أن يكون نص" }).nullable().optional(),
   branch: z.string({ invalid_type_error: "الفرع يجب أن يكون نص" }).nullable().optional(),
   landmarkNear: z.string({ invalid_type_error: "أقرب معلم يجب أن يكون نص" }).nullable().optional(),
   socialStatus: z.string({ invalid_type_error: "الحالة الاجتماعية يجب أن تكون نص" }).nullable().optional(),
   totalMembers: z.coerce.number({ required_error: "عدد الأفراد مطلوب", invalid_type_error: "عدد الأفراد يجب أن يكون رقم" }).min(1, "عدد الأفراد مطلوب"),
   numMales: z.coerce.number({ required_error: "عدد الذكور مطلوب", invalid_type_error: "عدد الذكور يجب أن يكون رقم" }).min(0, "عدد الذكور مطلوب"),
-  numFemales: z.coerce.number({ required_error: "عدد الإناث مطلوب", invalid_type_error: "عدد الإناث يجب أن يكون رقم" }).min(0, "عدد الإناث مطلوب"),
-});
-
-const wifeSchema = z.object({
-  wifeName: z.string({ required_error: "اسم الزوجة مطلوب", invalid_type_error: "اسم الزوجة يجب أن يكون نص" }).min(1, "اسم الزوجة مطلوب"),
-  wifeID: z.string({ invalid_type_error: "رقم هوية الزوجة يجب أن يكون نص" }).nullable().optional(),
-  wifeBirthDate: z.string({ invalid_type_error: "تاريخ ميلاد الزوجة يجب أن يكون نص" }).nullable().optional(),
-  wifeJob: z.string({ invalid_type_error: "مهنة الزوجة يجب أن تكون نص" }).nullable().optional(),
-  wifePregnant: z.boolean({ invalid_type_error: "حقل الحمل يجب أن يكون صحيح أو خطأ" }).default(false),
+  numFemales: z.coerce.number({ required_error: "عدد الإناث مطلوب", invalid_type_error: "عدد الإنات يجب أن يكون رقم" }).min(0, "عدد الإنات مطلوب"),
+  // Chronic illness for head of household
+  hasChronicIllness: z.boolean().default(false),
+  chronicIllnessType: z.string({ invalid_type_error: "نوع المرض المزمن يجب أن يكون نص" }).nullable().optional(),
+  // Chronic illness for spouse
+  spouseHasChronicIllness: z.boolean().default(false),
+  spouseChronicIllnessType: z.string({ invalid_type_error: "نوع مرض الزوج/ة المزمن يجب أن يكون نص" }).nullable().optional(),
+  // Disability for head of household
+  hasDisability: z.boolean().default(false),
+  disabilityType: z.string({ invalid_type_error: "نوع الإعاقة يجب أن يكون نص" }).nullable().optional(),
+  // Disability for spouse
+  spouseHasDisability: z.boolean().default(false),
+  spouseDisabilityType: z.string({ invalid_type_error: "نوع إعاقة الزوج/ة يجب أن يكون نص" }).nullable().optional(),
+  headGender: z.enum(['male', 'female']).optional(),
+}).refine((data) => {
+  // If head is female (wife), then husband (spouse) is mandatory
+  if (data.headGender === 'female' && (!data.spouseName || data.spouseName.trim() === "")) {
+    return false;
+  }
+  // If head is female (wife), then husband ID (spouseID) is mandatory
+  if (data.headGender === 'female' && (!data.spouseID || data.spouseID.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "بيانات الزوج مطلوبة عندما تكون رب الأسرة أنثى",
+  path: ["spouseName"] // This will show the error on the spouseName field
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
-type WifeFormData = z.infer<typeof wifeSchema>;
 
 export default function FamilyData() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [isAddingWife, setIsAddingWife] = useState(false);
-  const [editingWifeId, setEditingWifeId] = useState<number | null>(null);
   const [deleteWifeId, setDeleteWifeId] = useState<number | null>(null);
-  const [customSocialStatus, setCustomSocialStatus] = useState("");
-  const [customDamageDescription, setCustomDamageDescription] = useState("");
-  const [customBranch, setCustomBranch] = useState("");
-  
+
   const { data: family, isLoading } = useQuery({
     queryKey: ["/api/family"],
+    select: (data) => {
+      // Add gender information to the family data for UI purposes
+      if (!data) return data;
+
+      // If the API returns userGender, use it to determine labels
+      const headGender = data.userGender || 'male'; // default to male if not specified
+
+      return {
+        ...data,
+        // Store gender-appropriate spouse labels separately to avoid overwriting head of household fields
+        ...(data.spouse ? {
+          // Add transformed spouse fields with different names to avoid conflicts
+          ...((headGender === 'female') ? {
+            spouseAsHusbandName: data.spouse.husbandName || data.spouse.wifeName,
+            spouseAsHusbandID: data.spouse.husbandID || data.spouse.wifeID,
+            spouseAsHusbandBirthDate: data.spouse.husbandBirthDate || data.spouse.wifeBirthDate,
+            spouseAsHusbandJob: data.spouse.husbandJob || data.spouse.wifeJob,
+            spouseAsHusbandPregnant: data.spouse.husbandPregnant || data.spouse.wifePregnant,
+            spouseAsHusbandHasChronicIllness: data.spouse.husbandHasChronicIllness || data.spouse.wifeHasChronicIllness,
+            spouseAsHusbandChronicIllnessType: data.spouse.husbandChronicIllnessType || data.spouse.wifeChronicIllnessType,
+            spouseAsHusbandHasDisability: data.spouse.husbandHasDisability || data.spouse.wifeHasDisability,
+            spouseAsHusbandDisabilityType: data.spouse.husbandDisabilityType || data.spouse.wifeDisabilityType,
+          } : {
+            spouseAsWifeName: data.spouse.wifeName,
+            spouseAsWifeID: data.spouse.wifeID,
+            spouseAsWifeBirthDate: data.spouse.wifeBirthDate,
+            spouseAsWifeJob: data.spouse.wifeJob,
+            spouseAsWifePregnant: data.spouse.wifePregnant,
+            spouseAsWifeHasChronicIllness: data.spouse.wifeHasChronicIllness,
+            spouseAsWifeChronicIllnessType: data.spouse.wifeChronicIllnessType,
+            spouseAsWifeHasDisability: data.spouse.wifeHasDisability,
+            spouseAsWifeDisabilityType: data.spouse.wifeDisabilityType,
+          }),
+        } : (data.wifeName ? { // Fallback: if no spouse object but raw spouse fields exist
+          ...((headGender === 'female') ? {
+            spouseAsHusbandName: data.wifeName,
+            spouseAsHusbandID: data.wifeID,
+            spouseAsHusbandBirthDate: data.wifeBirthDate,
+            spouseAsHusbandJob: data.wifeJob,
+            spouseAsHusbandPregnant: data.wifePregnant,
+            spouseAsHusbandHasChronicIllness: data.wifeHasChronicIllness,
+            spouseAsHusbandChronicIllnessType: data.wifeChronicIllnessType,
+            spouseAsHusbandHasDisability: data.wifeHasDisability,
+            spouseAsHusbandDisabilityType: data.wifeDisabilityType,
+          } : {
+            spouseAsWifeName: data.wifeName,
+            spouseAsWifeID: data.wifeID,
+            spouseAsWifeBirthDate: data.wifeBirthDate,
+            spouseAsWifeJob: data.wifeJob,
+            spouseAsWifePregnant: data.wifePregnant,
+            spouseAsWifeHasChronicIllness: data.wifeHasChronicIllness,
+            spouseAsWifeChronicIllnessType: data.wifeChronicIllnessType,
+            spouseAsWifeHasDisability: data.wifeHasDisability,
+            spouseAsWifeDisabilityType: data.wifeDisabilityType,
+          }),
+        } : {})),
+        headGender, // Add head gender for UI logic
+      };
+    },
   });
   const [, navigate] = useLocation();
   const { settings } = useSettingsContext();
@@ -86,12 +162,17 @@ export default function FamilyData() {
       husbandJob: "",
       primaryPhone: "",
       secondaryPhone: "",
+      spouseName: "",
+      spouseID: "",
+      spouseBirthDate: "",
+      spouseJob: "",
+      spousePregnant: false,
       originalResidence: "",
       currentHousing: "",
       isDisplaced: false,
       displacedLocation: "",
       isAbroad: false,
-      warDamage2024: false,
+      warDamage2023: false,
       warDamageDescription: "",
       branch: "",
       landmarkNear: "",
@@ -99,6 +180,15 @@ export default function FamilyData() {
       totalMembers: 0,
       numMales: 0,
       numFemales: 0,
+      hasChronicIllness: false,
+      chronicIllnessType: "",
+      spouseHasChronicIllness: false,
+      spouseChronicIllnessType: "",
+      hasDisability: false,
+      disabilityType: "",
+      spouseHasDisability: false,
+      spouseDisabilityType: "",
+      headGender: "male", // Default value
     },
   });
 
@@ -107,53 +197,40 @@ export default function FamilyData() {
   const currentSocialStatus = form.watch("socialStatus");
   const currentWarDamageDescription = form.watch("warDamageDescription");
 
-  const wifeForm = useForm<WifeFormData>({
-    resolver: zodResolver(wifeSchema),
-    defaultValues: {
-      wifeName: "",
-      wifeID: "",
-      wifeBirthDate: "",
-      wifeJob: "",
-      wifePregnant: false,
-    },
-  });
 
   useEffect(() => {
     if (family) {
-      // Check for custom values before resetting form
-      const isCustomSocialStatus = family.socialStatus && 
-        !["married", "polygamous", "divorced", "widowed"].includes(family.socialStatus);
-      const isCustomBranch = family.branch && 
-        !["abouda_abunasr", "married_daughters_displaced", "alnogra", "abushalbia_abumatar"].includes(family.branch);
-      const isCustomDamage = family.warDamageDescription && 
-        !["total_destruction_uninhabitable", "partial_destruction_habitable", "minor_damage"].includes(family.warDamageDescription);
-
-      // Set custom state values
-      if (isCustomSocialStatus) {
-        setCustomSocialStatus(family.socialStatus);
-      } else {
-        setCustomSocialStatus(""); // Clear if not custom
-      }
-      if (isCustomBranch) {
-        setCustomBranch(family.branch);
-      } else {
-        setCustomBranch(""); // Clear if not custom
-      }
-      if (isCustomDamage) {
-        setCustomDamageDescription(family.warDamageDescription);
-      } else {
-        setCustomDamageDescription(""); // Clear if not custom
-      }
-
       // Reset form with proper values
+      const headGender = family.headGender || family.userGender || 'male';
       const formData = {
         ...family,
+        headGender: headGender,
+        // Handle head of household fields (these should use original values, not transformed)
+        husbandName: family.husbandName || "",  // Original head of household name
+        husbandID: family.husbandID || "",
         husbandBirthDate: family.husbandBirthDate ? formatDateForInput(family.husbandBirthDate) : "",
-        socialStatus: isCustomSocialStatus ? "custom" : family.socialStatus || "",
-        branch: isCustomBranch ? "custom" : family.branch || "",
-        warDamageDescription: isCustomDamage ? "custom" : family.warDamageDescription || "",
+        husbandJob: family.husbandJob || "",
+        // Handle spouse fields (these should use new transformed values based on head's gender)
+        spouseName: (headGender === 'female' ? family.spouseAsHusbandName : family.spouseAsWifeName) || "",
+        spouseID: (headGender === 'female' ? family.spouseAsHusbandID : family.spouseAsWifeID) || "",
+        spouseBirthDate: (headGender === 'female' ? family.spouseAsHusbandBirthDate : family.spouseAsWifeBirthDate) || "",
+        spouseJob: (headGender === 'female' ? family.spouseAsHusbandJob : family.spouseAsWifeJob) || "",
+        spousePregnant: (headGender === 'female' ? family.spouseAsHusbandPregnant : family.spouseAsWifePregnant) || false,
+        // Health information for spouse
+        spouseHasChronicIllness: (headGender === 'female' ? family.spouseAsHusbandHasChronicIllness : family.spouseAsWifeHasChronicIllness) || false,
+        spouseChronicIllnessType: (headGender === 'female' ? family.spouseAsHusbandChronicIllnessType : family.spouseAsWifeChronicIllnessType) || "",
+        spouseHasDisability: (headGender === 'female' ? family.spouseAsHusbandHasDisability : family.spouseAsWifeHasDisability) || false,
+        spouseDisabilityType: (headGender === 'female' ? family.spouseAsHusbandDisabilityType : family.spouseAsWifeDisabilityType) || "",
+        // Other fields
+        socialStatus: family.socialStatus || "",
+        branch: family.branch || "",
+        warDamageDescription: family.warDamageDescription || "",
+        hasChronicIllness: family.hasChronicIllness || false,
+        chronicIllnessType: family.chronicIllnessType || "",
+        hasDisability: family.hasDisability || false,
+        disabilityType: family.disabilityType || "",
       };
-      
+
       form.reset(formData);
     }
   }, [family, form]);
@@ -213,63 +290,27 @@ export default function FamilyData() {
     },
   });
 
-  const createWifeMutation = useMutation({
-    mutationFn: async (data: WifeFormData) => {
-      const res = await apiRequest("POST", "/api/wives", data);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/family"] });
-      setIsAddingWife(false);
-      wifeForm.reset();
-      toast({
-        title: "تم الإضافة بنجاح",
-        description: "تم إضافة الزوجة بنجاح",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "خطأ في الإضافة",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateWifeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<WifeFormData> }) => {
-      const res = await apiRequest("PUT", `/api/wives/${id}`, data);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/family"] });
-      setEditingWifeId(null);
-      setIsAddingWife(false);
-      wifeForm.reset();
-      toast({
-        title: "تم التحديث بنجاح",
-        description: "تم تحديث بيانات الزوجة",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "خطأ في التحديث",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const deleteWifeMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/wives/${id}`);
+    mutationFn: async () => {
+      const familyId = family?.id;
+      if (!familyId) {
+        throw new Error("Family ID is required");
+      }
+      // Update the family record to clear wife data
+      const res = await apiRequest("PUT", `/api/family/${familyId}`, {
+        wifeName: null,
+        wifeID: null,
+        wifeBirthDate: null,
+        wifeJob: null,
+        wifePregnant: false
+      });
       return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family"] });
       toast({
         title: "تم الحذف بنجاح",
-        description: "تم حذف الزوجة بنجاح",
+        description: "تم حذف بيانات الزوجة",
       });
     },
     onError: (error: Error) => {
@@ -282,71 +323,132 @@ export default function FamilyData() {
   });
 
   const onSubmit = (data: FamilyFormData) => {
-    // Handle custom values
-    if (data.socialStatus === "custom") {
-      data.socialStatus = customSocialStatus;
-    }
-    
-    if (data.warDamageDescription === "custom") {
-      data.warDamageDescription = customDamageDescription;
-    }
-    
-    if (data.branch === "custom") {
-      data.branch = customBranch;
-    }
-    
+    // Clean up optional fields that might be empty strings
+    const cleanedData = {
+      ...data,
+      // Convert empty strings appropriately based on each field's Zod schema
+      // For strings: send empty string "" instead of undefined/null to ensure backend receives the update
+      secondaryPhone: data.secondaryPhone || "",        // Send empty string to backend to clear value
+      spouseName: data.spouseName || null,              // .nullable().optional() - can be null
+      spouseID: data.spouseID || "",                    // Send empty string to backend to clear value
+      spouseBirthDate: data.spouseBirthDate || null,    // .nullable().optional() - can be null
+      spouseJob: data.spouseJob || "",                  // Send empty string to backend to clear value
+      displacedLocation: data.displacedLocation || null, // .nullable().optional() - can be null
+      warDamageDescription: data.warDamageDescription || null, // .nullable().optional() - can be null
+      branch: data.branch || null,                      // .nullable().optional() - can be null
+      landmarkNear: data.landmarkNear || "",            // Send empty string to backend to clear value
+      socialStatus: data.socialStatus || null,          // .nullable().optional() - can be null
+      chronicIllnessType: data.chronicIllnessType || "", // Send empty string to backend to clear value
+      spouseChronicIllnessType: data.spouseChronicIllnessType || "", // Send empty string to backend to clear value
+      disabilityType: data.disabilityType || "",        // Send empty string to backend to clear value
+      spouseDisabilityType: data.spouseDisabilityType || "", // Send empty string to backend to clear value
+    };
+
+    // Map form fields back to backend format
+    // The backend expects husband fields for head of household and wife fields for spouse
+    const mappedData = {
+      ...cleanedData,
+      // Map head of household fields back to husband fields for backend
+      husbandName: cleanedData.husbandName,
+      husbandID: cleanedData.husbandID,
+      husbandBirthDate: cleanedData.husbandBirthDate,
+      husbandJob: cleanedData.husbandJob,
+      // Map spouse fields back to wife fields for backend
+      wifeName: cleanedData.spouseName || null,
+      wifeID: cleanedData.spouseID || null,
+      wifeBirthDate: cleanedData.spouseBirthDate || null,
+      wifeJob: cleanedData.spouseJob || null,
+      wifePregnant: cleanedData.spousePregnant || false,
+      wifeHasChronicIllness: cleanedData.spouseHasChronicIllness || false,
+      wifeChronicIllnessType: cleanedData.spouseChronicIllnessType || null,
+      wifeHasDisability: cleanedData.spouseHasDisability || false,
+      wifeDisabilityType: cleanedData.spouseDisabilityType || null,
+      // Remove form-specific field names that aren't expected by backend
+      spouseName: undefined,
+      spouseID: undefined,
+      spouseBirthDate: undefined,
+      spouseJob: undefined,
+      spousePregnant: undefined,
+      spouseHasChronicIllness: undefined,
+      spouseChronicIllnessType: undefined,
+      spouseHasDisability: undefined,
+      spouseDisabilityType: undefined,
+    };
+
     // Safeguard: Ensure we don't send empty values for existing family
     if (family) {
-      // If form values are empty but family has values, preserve the existing values
-      const safeData = {
-        ...data,
-        socialStatus: data.socialStatus || family.socialStatus || "",
-        branch: data.branch || family.branch || "",
-        warDamageDescription: data.warDamageDescription || family.warDamageDescription || "",
-      };
-      
-      updateFamilyMutation.mutate(safeData);
+      // If head gender has changed, update the user profile first, then the family
+      if (mappedData.headGender && family.headGender !== mappedData.headGender) {
+        // Update user gender via profile API first
+        apiRequest("PUT", "/api/user/profile", {
+          gender: mappedData.headGender
+        })
+        .then(() => {
+          // Update family data after user profile is updated
+          updateFamilyMutation.mutate(mappedData);
+        })
+        .catch(error => {
+          console.error("Error updating user gender:", error);
+          toast({
+            title: "خطأ",
+            description: "فشل تحديث جنس رب/ربة الأسرة",
+            variant: "destructive",
+          });
+          // Still update family data even if user profile update fails
+          updateFamilyMutation.mutate(mappedData);
+        });
+      } else {
+        // Update family data directly if no gender change
+        updateFamilyMutation.mutate(mappedData);
+      }
     } else {
-      createFamilyMutation.mutate(data);
+      createFamilyMutation.mutate(mappedData);
     }
   };
 
-  const onSubmitWife = (data: WifeFormData) => {
-    if (editingWifeId) {
-      updateWifeMutation.mutate({ id: editingWifeId, data });
-    } else {
-      createWifeMutation.mutate(data);
+  // Handle submission with validation error toast
+  const handleFormSubmit = form.handleSubmit(
+    onSubmit,
+    // onError callback for validation errors
+    (errors) => {
+      // Define the actual required fields based on the schema (no .optional() or .nullable())
+      const requiredFields = [
+        'husbandName', 'husbandID', 'husbandBirthDate', 'husbandJob',
+        'primaryPhone', 'originalResidence', 'currentHousing',
+        'totalMembers', 'numMales', 'numFemales'
+      ];
+
+      // Only include required fields that have validation errors
+      const requiredErrorFields = Object.keys(errors).filter(field =>
+        requiredFields.includes(field)
+      );
+
+      if (requiredErrorFields.length > 0) {
+        // Map field names to Arabic labels
+        const fieldLabels: { [key: string]: string } = {
+          husbandName: 'اسم رب/ربة الأسرة',
+          husbandID: 'رقم هوية رب/ربة الأسرة',
+          husbandJob: 'مهنة رب/ربة الأسرة',
+          husbandBirthDate: 'تاريخ ميلاد رب/ربة الأسرة',
+          primaryPhone: 'الهاتف الأساسي',
+          originalResidence: 'السكن الأصلي',
+          currentHousing: 'السكن الحالي',
+          totalMembers: 'إجمالي الأفراد',
+          numMales: 'عدد الذكور',
+          numFemales: 'عدد الإناث',
+        };
+
+        const errorFieldNames = requiredErrorFields.map(field => fieldLabels[field] || field);
+
+        toast({
+          title: "خطأ في التحقق",
+          description: `يرجى مراجعة الحقول المطلوبة: ${errorFieldNames.join(', ')}`,
+          variant: "destructive",
+        });
+      }
     }
-  };
+  );
 
-  const handleEditWife = (wife: any) => {
-    setEditingWifeId(wife.id);
-    setIsAddingWife(true);
-    wifeForm.reset({
-      wifeName: wife.wifeName || "",
-      wifeID: wife.wifeID || "",
-      wifeBirthDate: wife.wifeBirthDate ? formatDateForInput(wife.wifeBirthDate) : "",
-      wifeJob: wife.wifeJob || "",
-      wifePregnant: wife.wifePregnant || false,
-    });
-  };
-
-  const handleDeleteWife = (id: number) => {
-    setDeleteWifeId(id);
-  };
-
-  const confirmDeleteWife = () => {
-    if (deleteWifeId) {
-      deleteWifeMutation.mutate(deleteWifeId);
-      setDeleteWifeId(null);
-    }
-  };
-
-  const handleCancelWife = () => {
-    setIsAddingWife(false);
-    setEditingWifeId(null);
-    wifeForm.reset();
-  };
 
   // Helper function to format date for display
   const formatDateForDisplay = (dateString: string) => {
@@ -398,7 +500,7 @@ export default function FamilyData() {
             <span className="text-sm sm:text-base">عرض أفراد الأسرة</span>
           </Button>
         </Link>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+        <form onSubmit={handleFormSubmit} className="space-y-6 sm:space-y-8">
           {/* Husband Information */}
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -421,6 +523,7 @@ export default function FamilyData() {
                   <Input
                     id="husbandName"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("husbandName")}
                   />
                   {form.formState.errors.husbandName && (
@@ -435,6 +538,7 @@ export default function FamilyData() {
                   <Input
                     id="husbandID"
                     disabled={true}
+                    className="text-right"
                     {...form.register("husbandID")}
                   />
                   {form.formState.errors.husbandID && (
@@ -466,8 +570,27 @@ export default function FamilyData() {
                   <Input
                     id="husbandJob"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("husbandJob")}
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="headGender">الجنس</Label>
+                  <Select
+                    value={form.watch("headGender") || family?.userGender || "male"}
+                    onValueChange={(value) => form.setValue("headGender", value)}
+                    disabled={!isEditing}
+                    dir="rtl"
+                  >
+                    <SelectTrigger className="text-right">
+                      <SelectValue placeholder="اختر الجنس" className="text-right" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="male" className="text-right">ذكر</SelectItem>
+                      <SelectItem value="female" className="text-right">أنثى</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -475,6 +598,7 @@ export default function FamilyData() {
                   <Input
                     id="primaryPhone"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("primaryPhone")}
                   />
                 </div>
@@ -484,177 +608,303 @@ export default function FamilyData() {
                   <Input
                     id="secondaryPhone"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("secondaryPhone")}
                   />
+                  {form.formState.errors.secondaryPhone && (
+                    <p className="text-sm text-destructive mt-1">
+                      {form.formState.errors.secondaryPhone.message}
+                    </p>
+                  )}
                 </div>
+
+                {/* Health switches */}
+                <div className="sm:col-span-2">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="hasChronicIllness"
+                          disabled={!isEditing}
+                          checked={form.watch("hasChronicIllness")}
+                          onCheckedChange={(checked) => form.setValue("hasChronicIllness", checked)}
+                        />
+                        <Label htmlFor="hasChronicIllness" className="cursor-pointer">يعاني من مرض مزمن</Label>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="hasDisability"
+                          disabled={!isEditing}
+                          checked={form.watch("hasDisability")}
+                          onCheckedChange={(checked) => form.setValue("hasDisability", checked)}
+                        />
+                        <Label htmlFor="hasDisability" className="cursor-pointer">يعاني من إعاقة</Label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {form.watch("hasChronicIllness") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="chronicIllnessType">نوع المرض المزمن</Label>
+                    <Input
+                      id="chronicIllnessType"
+                      placeholder="اذكر نوع المرض المزمن"
+                      disabled={!isEditing}
+                      {...form.register("chronicIllnessType")}
+                    />
+                  </div>
+                )}
+
+                {form.watch("hasDisability") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="disabilityType">نوع الإعاقة</Label>
+                    <Input
+                      id="disabilityType"
+                      placeholder="اذكر نوع الإعاقة"
+                      disabled={!isEditing}
+                      {...form.register("disabilityType")}
+                    />
+                  </div>
+                )}
+
+                {(form.watch("headGender") || family?.headGender || "male") === "female" && ( // Show pregnancy field when head is female (the head herself could be pregnant)
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <Switch
+                    id="spousePregnant"
+                    disabled={!isEditing}
+                    checked={form.watch("spousePregnant")}
+                    onCheckedChange={(checked) => form.setValue("spousePregnant", checked)}
+                  />
+                  <Label htmlFor="spousePregnant">حالة الحمل (ربة الأسرة)</Label>
+                </div>
+                )}
+
               </div>
             </CardContent>
           </Card>
         </form>
 
-        {/* Wives Information */}
+        {/* Wife Information - Integrated into Family Form when editing */}
+          {isEditing && (
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="text-lg sm:text-xl">
-                {(() => {
-                  const socialStatus = form.watch("socialStatus");
-                  if (socialStatus === "polygamous") return "بيانات الزوجات";
-                  if (socialStatus === "married") return "بيانات الزوجة";
-                  return "بيانات الزوجة"; // default
-                })()}
+                {(form.watch("headGender") || family?.headGender || "male") === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
               </CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddingWife(true)}
-                className="w-full sm:w-auto text-sm sm:text-base"
-              >
-                <Plus className="h-4 w-4 ml-2" />
-                إضافة زوجة
-              </Button>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6">
-              {family?.wives && family.wives.length > 0 ? (
-                <div className="space-y-4">
-                  {family.wives.map((wife: any, index: number) => (
-                    <div key={wife.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-semibold text-lg">{wife.wifeName}</h4>
-                          {wife.wifeID && (
-                            <p className="text-sm text-muted-foreground">رقم الهوية: {wife.wifeID}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditWife(wife)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteWife(wife.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                        {wife.wifeBirthDate && (
-                          <div>
-                            <span className="text-muted-foreground">تاريخ الميلاد: </span>
-                            <span>{formatDateForDisplay(wife.wifeBirthDate)}</span>
-                            <Badge variant="outline" className="ml-2">
-                              {calculateDetailedAge(wife.wifeBirthDate)}
-                            </Badge>
-                          </div>
-                        )}
-                        {wife.wifeJob && (
-                          <div>
-                            <span className="text-muted-foreground">المهنة: </span>
-                            <span>{wife.wifeJob}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-4 mt-2">
-                        {wife.wifePregnant && (
-                          <Badge variant="secondary">حامل</Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="spouseName">{form.watch("headGender") === "female" ? "اسم الزوج *" : "اسم الزوجة"}</Label>
+                  <Input
+                    id="spouseName"
+                    disabled={!isEditing}
+                    className="text-right"
+                    {...form.register("spouseName")}
+                  />
+                  {form.formState.errors.spouseName && (
+                    <p className="text-sm text-destructive mt-1">
+                      {form.formState.errors.spouseName.message}
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  لا توجد زوجة مسجلة
+
+                <div>
+                  <Label htmlFor="spouseID">{form.watch("headGender") === "female" ? "رقم هوية الزوج *" : "رقم هوية الزوجة"}</Label>
+                  <Input
+                    id="spouseID"
+                    disabled={!isEditing}
+                    className="text-right"
+                    {...form.register("spouseID")}
+                  />
+                  {form.formState.errors.spouseID && (
+                    <p className="text-sm text-destructive mt-1">
+                      {form.formState.errors.spouseID.message}
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {/* Add/Edit Wife Form */}
-              {isAddingWife && (
-                <div className="border-t pt-6">
-                  <h4 className="text-lg font-semibold mb-4">
-                    {editingWifeId ? "تعديل بيانات الزوجة" : "إضافة زوجة جديدة"}
-                  </h4>
-                  <form onSubmit={wifeForm.handleSubmit(onSubmitWife)} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="wifeName">الاسم الرباعي *</Label>
-                        <Input
-                          id="wifeName"
-                          {...wifeForm.register("wifeName")}
-                        />
-                        {wifeForm.formState.errors.wifeName && (
-                          <p className="text-sm text-destructive mt-1">
-                            {wifeForm.formState.errors.wifeName.message}
-                          </p>
-                        )}
-                      </div>
+                <div>
+                  <Label htmlFor="spouseBirthDate">{form.watch("headGender") === "female" ? "تاريخ ميلاد الزوج" : "تاريخ ميلاد الزوجة"}</Label>
+                  <Input
+                    id="spouseBirthDate"
+                    type="date"
+                    disabled={!isEditing}
+                    className="text-right"
+                    {...form.register("spouseBirthDate")}
+                  />
+                </div>
 
-                      <div>
-                        <Label htmlFor="wifeID">رقم الهوية</Label>
-                        <Input
-                          id="wifeID"
-                          {...wifeForm.register("wifeID")}
-                        />
-                      </div>
+                <div>
+                  <Label htmlFor="spouseJob">{form.watch("headGender") === "female" ? "مهنة الزوج" : "مهنة الزوجة"}</Label>
+                  <Input
+                    id="spouseJob"
+                    disabled={!isEditing}
+                    className="text-right"
+                    {...form.register("spouseJob")}
+                  />
+                </div>
 
-                      <div>
-                        <Label htmlFor="wifeBirthDate">تاريخ الميلاد</Label>
-                        <Input
-                          id="wifeBirthDate"
-                          type="date"
-                          {...wifeForm.register("wifeBirthDate")}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="wifeJob">المهنة</Label>
-                        <Input
-                          id="wifeJob"
-                          {...wifeForm.register("wifeJob")}
-                        />
-                      </div>
-
-
+                {/* Health switches */}
+                <div className="sm:col-span-2">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="rounded-md border border-input p-3">
                       <div className="flex items-center space-x-2 space-x-reverse">
                         <Switch
-                          id="wifePregnant"
-                          checked={wifeForm.watch("wifePregnant")}
-                          onCheckedChange={(checked) => wifeForm.setValue("wifePregnant", checked)}
+                          id="spouseHasChronicIllness"
+                          disabled={!isEditing}
+                          checked={form.watch("spouseHasChronicIllness")}
+                          onCheckedChange={(checked) => form.setValue("spouseHasChronicIllness", checked)}
                         />
-                        <Label htmlFor="wifePregnant">حامل</Label>
+                        <Label htmlFor="spouseHasChronicIllness" className="cursor-pointer">{form.watch("headGender") === "female" ? "يعاني من مرض مزمن" : "تعاني من مرض مزمن"}</Label>
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancelWife}
-                      >
-                        إلغاء
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={createWifeMutation.isPending || updateWifeMutation.isPending}
-                      >
-                        {createWifeMutation.isPending || updateWifeMutation.isPending ? "جاري الحفظ..." : "حفظ"}
-                      </Button>
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="spouseHasDisability"
+                          disabled={!isEditing}
+                          checked={form.watch("spouseHasDisability")}
+                          onCheckedChange={(checked) => form.setValue("spouseHasDisability", checked)}
+                        />
+                        <Label htmlFor="spouseHasDisability" className="cursor-pointer">{form.watch("headGender") === "female" ? "يعاني من إعاقة" : "تعاني من إعاقة"}</Label>
+                      </div>
                     </div>
-                  </form>
+
+                    {(form.watch("headGender") || family?.headGender || "male") === "male" && ( // Show pregnancy field when head is male (so spouse could be pregnant)
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="spousePregnant"
+                          disabled={!isEditing}
+                          checked={form.watch("spousePregnant")}
+                          onCheckedChange={(checked) => form.setValue("spousePregnant", checked)}
+                        />
+                        <Label htmlFor="spousePregnant" className="cursor-pointer">حالة الحمل (الزوجة)</Label>
+                      </div>
+                    </div>
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {form.watch("spouseHasChronicIllness") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="spouseChronicIllnessType">{form.watch("headGender") === "female" ? "نوع مرض الزوج المزمن" : "نوع مرض الزوجة المزمن"}</Label>
+                    <Input
+                      id="spouseChronicIllnessType"
+                      placeholder="اذكر نوع المرض المزمن"
+                      disabled={!isEditing}
+                      {...form.register("spouseChronicIllnessType")}
+                    />
+                  </div>
+                )}
+
+                {form.watch("spouseHasDisability") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="spouseDisabilityType">{form.watch("headGender") === "female" ? "نوع إعاقة الزوج" : "نوع إعاقة الزوجة"}</Label>
+                    <Input
+                      id="spouseDisabilityType"
+                      placeholder="اذكر نوع الإعاقة"
+                      disabled={!isEditing}
+                      {...form.register("spouseDisabilityType")}
+                    />
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
+          )}
+
+          {/* Display Spouse Information when NOT editing */}
+          {!isEditing && (family?.headGender === "female" ? family?.spouseAsHusbandName : family?.spouseAsWifeName) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg sm:text-xl">
+                  {family.headGender === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 sm:space-y-6">
+                <div className="space-y-4">
+                  <div key={family.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="cursor-not-allowed">
+                        <h4 className="font-semibold text-lg text-muted-foreground">{family.headGender === "female" ? family.spouseAsHusbandName : family.spouseAsWifeName}</h4>
+                        {(family.headGender === "female" ? family.spouseAsHusbandID : family.spouseAsWifeID) && (
+                          <p className="text-sm text-muted-foreground">رقم الهوية: {family.headGender === "female" ? family.spouseAsHusbandID : family.spouseAsWifeID}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm opacity-70">
+                      {(family.headGender === "female" ? family.spouseAsHusbandBirthDate : family.spouseAsWifeBirthDate) && (
+                        <div className="cursor-not-allowed">
+                          <span className="text-muted-foreground">{family.headGender === "female" ? "تاريخ ميلاد الزوج: " : "تاريخ ميلاد الزوجة: "}</span>
+                          <span className="text-muted-foreground">{formatDateForDisplay(family.headGender === "female" ? family.spouseAsHusbandBirthDate : family.spouseAsWifeBirthDate)}</span>
+                          <Badge variant="outline" className="ml-2">
+                            {calculateDetailedAge(family.headGender === "female" ? family.spouseAsHusbandBirthDate : family.spouseAsWifeBirthDate)}
+                          </Badge>
+                        </div>
+                      )}
+                      {(family.headGender === "female" ? family.spouseAsHusbandJob : family.spouseAsWifeJob) && (
+                        <div className="cursor-not-allowed">
+                          <span className="text-muted-foreground">{family.headGender === "female" ? "مهنة الزوج: " : "مهنة الزوجة: "}</span>
+                          <span className="text-muted-foreground">{family.headGender === "female" ? family.spouseAsHusbandJob : family.spouseAsWifeJob}</span>
+                        </div>
+                      )}
+                      {(family.headGender === "female" ? family.spouseAsHusbandHasChronicIllness : family.spouseAsWifeHasChronicIllness) &&
+                       (family.headGender === "female" ? family.spouseAsHusbandChronicIllnessType : family.spouseAsWifeChronicIllnessType) && (
+                        <div className="cursor-not-allowed">
+                          <span className="text-muted-foreground">{family.headGender === "female" ? "مرض الزوج المزمن: " : "مرض الزوجة المزمن: "}</span>
+                          <span className="text-muted-foreground">{family.headGender === "female" ? family.spouseAsHusbandChronicIllnessType : family.spouseAsWifeChronicIllnessType}</span>
+                        </div>
+                      )}
+                      {(family.headGender === "female" ? family.spouseAsHusbandHasDisability : family.spouseAsWifeHasDisability) &&
+                       (family.headGender === "female" ? family.spouseAsHusbandDisabilityType : family.spouseAsWifeDisabilityType) && (
+                        <div className="cursor-not-allowed">
+                          <span className="text-muted-foreground">{family.headGender === "female" ? "نوع إعاقة الزوج: " : "نوع إعاقة الزوجة: "}</span>
+                          <span className="text-muted-foreground">{family.headGender === "female" ? family.spouseAsHusbandDisabilityType : family.spouseAsWifeDisabilityType}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-4 mt-2 opacity-70">
+                      {family.headGender === "male" && (family.spouseAsWifePregnant) && ( // Only show pregnancy badge if head is male (i.e., head is male, so spouse could be pregnant)
+                        <Badge variant="secondary" className="cursor-not-allowed">حامل</Badge>
+                      )}
+                      {(family.headGender === "female" ? family.spouseAsHusbandHasChronicIllness : family.spouseAsWifeHasChronicIllness) && (
+                        <Badge variant="destructive" className="cursor-not-allowed">{family.headGender === "female" ? "الزوج يعاني من مرض مزمن" : "الزوجة تعاني من مرض مزمن"}</Badge>
+                      )}
+                      {(family.headGender === "female" ? family.spouseAsHusbandHasDisability : family.spouseAsWifeHasDisability) && (
+                        <Badge variant="destructive" className="cursor-not-allowed">{family.headGender === "female" ? "الزوج يعاني من إعاقة" : "الزوجة تعاني من إعاقة"}</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Show "No Spouse" message when NOT editing and no spouse data */}
+          {!isEditing && !(family?.headGender === "female" ? family?.spouseAsHusbandName : family?.spouseAsWifeName) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg sm:text-xl">
+                  {family?.headGender === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center text-muted-foreground py-8">
+                  {family?.headGender === "female" ? "لا يوجد زوج مسجل" : "لا توجد زوجة مسجلة"}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+        <form onSubmit={handleFormSubmit} className="space-y-6 sm:space-y-8">
           {/* Family Members */}
           <Card>
             <CardHeader>
@@ -669,6 +919,7 @@ export default function FamilyData() {
                     type="number"
                     min={1}
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("totalMembers")}
                   />
                   {form.formState.errors.totalMembers && (
@@ -684,6 +935,7 @@ export default function FamilyData() {
                     type="number"
                     min={0}
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("numMales")}
                   />
                   {form.formState.errors.numMales && (
@@ -699,6 +951,7 @@ export default function FamilyData() {
                     type="number"
                     min={0}
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("numFemales")}
                   />
                   {form.formState.errors.numFemales && (
@@ -723,6 +976,7 @@ export default function FamilyData() {
                   <Input
                     id="originalResidence"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("originalResidence")}
                   />
                   {form.formState.errors.originalResidence && (
@@ -736,6 +990,7 @@ export default function FamilyData() {
                   <Input
                     id="currentHousing"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("currentHousing")}
                   />
                   {form.formState.errors.currentHousing && (
@@ -745,170 +1000,226 @@ export default function FamilyData() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="branch">الفرع</Label>
-                  <Select
-                    disabled={!isEditing}
-                    value={currentBranch || ""}
-                    onValueChange={(value) => {
-                      if (value === "custom") {
-                        form.setValue("branch", "custom");
-                      } else {
-                        form.setValue("branch", value);
-                        setCustomBranch("");
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الفرع" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="abouda_abunasr">عائلة ابوعودة + ابو نصر</SelectItem>
-                      <SelectItem value="married_daughters_displaced">بنات العائلة متزوجات خارج العائلة, نازحين عند عائلة ابو طير</SelectItem>
-                      <SelectItem value="alnogra">النقرة</SelectItem>
-                      <SelectItem value="abushalbia_abumatar">ابو شلبية + ابو مطر</SelectItem>
-                      <SelectItem value="custom">أخرى</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {currentBranch === "custom" && (
-                    <Input
-                      className="mt-2"
-                      placeholder="أدخل اسم الفرع"
-                      value={customBranch}
-                      disabled={!isEditing}
-                      onChange={e => {
-                        setCustomBranch(e.target.value);
-                      }}
-                    />
-                  )}
-                </div>
-                <div>
                   <Label htmlFor="landmarkNear">أقرب معلم</Label>
                   <Input
                     id="landmarkNear"
                     disabled={!isEditing}
+                    className="text-right"
                     {...form.register("landmarkNear")}
                   />
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <Switch
-                    id="isDisplaced"
-                    disabled={!isEditing}
-                    checked={form.watch("isDisplaced")}
-                    onCheckedChange={(checked) => form.setValue("isDisplaced", checked)}
-                  />
-                  <Label htmlFor="isDisplaced">أسرة نازحة</Label>
+            </CardContent>
+          </Card>
+
+          {/* Organization Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">المعلومات التنظيمية</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <Label>الفرع</Label>
+                  {!isEditing ? (
+                    // Display mode: show the selected value in a styled div
+                    <div className="w-full">
+                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-not-allowed opacity-70">
+                        <span className="text-muted-foreground">
+                          {(() => {
+                            // Check if the branch is a custom value (not one of the predefined options)
+                            const isCustom = !["abushalbia", "alnaqra", "abuawda", "abunasr", "abumatar"].includes(family?.branch || "");
+                            return isCustom ? (family?.branch || "غير محدد") : getBranchInArabic(family?.branch || "");
+                          })()}
+                        </span>
+                      </div>
+                      {/* Show custom value when not in editing mode and branch is custom */}
+                      {!isEditing && family?.branch && !["abushalbia", "alnaqra", "abuawda", "abunasr", "abumatar"].includes(family.branch) && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          القيمة المخصصة: {family.branch}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Edit mode: show the select component with custom input if needed
+                    <>
+                      <Select
+                        disabled={!isEditing}
+                        value={["abushalbia", "alnaqra", "abuawda", "abunasr", "abumatar"].includes(currentBranch) ? currentBranch : ""}
+                        onValueChange={(value) => {
+                          form.setValue("branch", value);
+                        }}
+                        dir="rtl"
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="اختر الفرع" className="text-right" />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          <SelectItem value="abushalbia" className="text-right">ابو شلبية (شلف - علاينة - عزايزة)</SelectItem>
+                          <SelectItem value="alnaqra" className="text-right">النقرة (الدوار)</SelectItem>
+                          <SelectItem value="abuawda" className="text-right">ابو عودة</SelectItem>
+                          <SelectItem value="abunasr" className="text-right">ابو نصر</SelectItem>
+                          <SelectItem value="abumatar" className="text-right">ابو مطر</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Personal & Social Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">المعلومات الشخصية والاجتماعية</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <Label>الحالة الاجتماعية</Label>
+                  {!isEditing ? (
+                    // Display mode: show the selected value in a disabled select
+                    <div className="w-full">
+                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-not-allowed opacity-70">
+                        <span className="text-muted-foreground">
+                          {(() => {
+                            // Display the social status in Arabic if it's one of the predefined options
+                            const isPredefined = ["married", "polygamous", "widowed", "vulnerable_family", "abandoned", "divorced", "single"].includes(family?.socialStatus || "");
+                            return isPredefined ? getSocialStatusInArabic(family?.socialStatus || "") : (family?.socialStatus || "غير محدد");
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    // Edit mode: show the select component with custom input if needed
+                    <>
+                      <Select
+                        disabled={!isEditing}
+                        value={currentSocialStatus || ""}
+                        onValueChange={(value) => {
+                          form.setValue("socialStatus", value);
+                        }}
+                        dir="rtl"
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="اختر الحالة" className="text-right" />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          <SelectItem value="married" className="text-right">متزوج</SelectItem>
+                          <SelectItem value="polygamous" className="text-right">متعدد زوجات</SelectItem>
+                          <SelectItem value="widowed" className="text-right">ارملة</SelectItem>
+                          <SelectItem value="vulnerable_family" className="text-right">اسر هشة (ايتام)</SelectItem>
+                          <SelectItem value="abandoned" className="text-right">متروكة</SelectItem>
+                          <SelectItem value="divorced" className="text-right">مطلقة</SelectItem>
+                          <SelectItem value="single" className="text-right">عانس</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Welfare Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">المعلومات الاجتماعية والمعيشية</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6">
+              <div className="space-y-4">
+                {/* All switches grouped together */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="rounded-md border border-input p-3">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Switch
+                        id="isDisplaced"
+                        disabled={!isEditing}
+                        checked={form.watch("isDisplaced")}
+                        onCheckedChange={(checked) => form.setValue("isDisplaced", checked)}
+                      />
+                      <Label htmlFor="isDisplaced" className="cursor-pointer">أسرة نازحة</Label>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-input p-3">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Switch
+                        id="isAbroad"
+                        disabled={!isEditing}
+                        checked={form.watch("isAbroad")}
+                        onCheckedChange={(checked) => form.setValue("isAbroad", checked)}
+                      />
+                      <Label htmlFor="isAbroad" className="cursor-pointer">مغترب بالخارج</Label>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-input p-3">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Switch
+                        id="warDamage2023"
+                        disabled={!isEditing}
+                        checked={form.watch("warDamage2023")}
+                        onCheckedChange={(checked) => form.setValue("warDamage2023", checked)}
+                      />
+                      <Label htmlFor="warDamage2023" className="cursor-pointer">أضرار 2023</Label>
+                    </div>
+                  </div>
+                </div>
+
                 {form.watch("isDisplaced") && (
                   <div>
                     <Label htmlFor="displacedLocation">موقع النزوح</Label>
                     <Input
                       id="displacedLocation"
                       disabled={!isEditing}
+                      className="text-right"
                       {...form.register("displacedLocation")}
                     />
                   </div>
                 )}
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <Switch
-                    id="isAbroad"
-                    disabled={!isEditing}
-                    checked={form.watch("isAbroad")}
-                    onCheckedChange={(checked) => form.setValue("isAbroad", checked)}
-                  />
-                  <Label htmlFor="isAbroad">مغترب بالخارج</Label>
-                </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <Switch
-                    id="warDamage2024"
-                    disabled={!isEditing}
-                    checked={form.watch("warDamage2024")}
-                    onCheckedChange={(checked) => form.setValue("warDamage2024", checked)}
-                  />
-                  <Label htmlFor="warDamage2024">أضرار 2024</Label>
-                </div>
-                {form.watch("warDamage2024") && (
+
+                {(!isEditing || form.watch("warDamage2023")) && (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="warDamageDescription">نوع الأضرار</Label>
-                      <Select
-                        disabled={!isEditing}
-                        value={currentWarDamageDescription || ""}
-                        onValueChange={(value) => {
-                          if (value === "custom") {
-                            form.setValue("warDamageDescription", "custom");
-                          } else {
-                            form.setValue("warDamageDescription", value);
-                            setCustomDamageDescription("");
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر نوع الأضرار" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="total_destruction_uninhabitable">هدم كلي غير قابل للسكن</SelectItem>
-                          <SelectItem value="partial_destruction_habitable">هدم جزئي قابل للسكن</SelectItem>
-                          <SelectItem value="minor_damage">اضرار بسيطة</SelectItem>
-                          <SelectItem value="custom">أخرى</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>نوع الأضرار</Label>
+                      {!isEditing ? (
+                        // Display mode: show the selected value in a styled div
+                        <div className="w-full">
+                          <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-not-allowed opacity-70">
+                            <span className="text-muted-foreground">
+                              {(() => {
+                                // Display the damage description in Arabic if it's one of the predefined options
+                                const isPredefined = ["total_destruction_uninhabitable", "partial_destruction_habitable", "minor_damage"].includes(family?.warDamageDescription || "");
+                                return isPredefined ? getDamageDescriptionInArabic(family?.warDamageDescription || "") : (family?.warDamageDescription || "غير محدد");
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        // Edit mode: show the select component
+                        <>
+                          <Select
+                            disabled={!isEditing}
+                            value={currentWarDamageDescription || ""}
+                            onValueChange={(value) => {
+                              form.setValue("warDamageDescription", value);
+                            }}
+                            dir="rtl"
+                          >
+                            <SelectTrigger className="text-right">
+                              <SelectValue placeholder="اختر نوع الأضرار" className="text-right" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              <SelectItem value="total_destruction_uninhabitable" className="text-right">هدم كلي غير قابل للسكن</SelectItem>
+                              <SelectItem value="partial_destruction_habitable" className="text-right">هدم جزئي قابل للسكن</SelectItem>
+                              <SelectItem value="minor_damage" className="text-right">اضرار بسيطة</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
                     </div>
-
-                    {currentWarDamageDescription === "custom" && (
-                      <div>
-                        <Label htmlFor="customDamageDescription">تفاصيل الأضرار المخصصة</Label>
-                        <Textarea
-                          id="customDamageDescription"
-                          placeholder="وصف تفصيلي للأضرار التي لحقت بالأسرة..."
-                          value={customDamageDescription}
-                          disabled={!isEditing}
-                          onChange={(e) => {
-                            setCustomDamageDescription(e.target.value);
-                          }}
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
-                <div>
-                  <Label htmlFor="socialStatus">الحالة الاجتماعية</Label>
-                  <Select
-                    disabled={!isEditing}
-                    value={currentSocialStatus || ""}
-                    onValueChange={(value) => {
-                      if (value === "custom") {
-                        form.setValue("socialStatus", "custom");
-                      } else {
-                        form.setValue("socialStatus", value);
-                        setCustomSocialStatus("");
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="married">متزوج</SelectItem>
-                      <SelectItem value="polygamous">متعدد الزوجات</SelectItem>
-                      <SelectItem value="divorced">مطلق</SelectItem>
-                      <SelectItem value="widowed">أرملة</SelectItem>
-                      <SelectItem value="custom">أخرى</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {currentSocialStatus === "custom" && (
-                    <Input
-                      className="mt-2"
-                      placeholder="أدخل الحالة الاجتماعية"
-                      value={customSocialStatus}
-                      disabled={!isEditing}
-                      onChange={e => {
-                        setCustomSocialStatus(e.target.value);
-                      }}
-                    />
-                  )}
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -935,32 +1246,6 @@ export default function FamilyData() {
         </form>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteWifeId !== null} onOpenChange={(open) => !open && setDeleteWifeId(null)}>
-        <AlertDialogContent className="w-[90vw] max-w-md mx-auto">
-          <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="text-lg sm:text-xl text-center">تأكيد الحذف</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm sm:text-base text-center">
-              هل أنت متأكد من حذف هذه الزوجة؟ لا يمكن التراجع عن هذا الإجراء.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <AlertDialogCancel 
-              onClick={() => setDeleteWifeId(null)}
-              className="w-full sm:w-auto order-2 sm:order-1"
-            >
-              إلغاء
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteWife}
-              disabled={deleteWifeMutation.isPending}
-              className="w-full sm:w-auto order-1 sm:order-2 bg-destructive hover:bg-destructive/90"
-            >
-              {deleteWifeMutation.isPending ? "جاري الحذف..." : "حذف"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

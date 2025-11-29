@@ -9,12 +9,14 @@ import { Switch } from "@/components/ui/switch";
 
 const memberSchema = z.object({
   fullName: z.string().min(1, "الاسم مطلوب"),
-  memberID: z.string().optional(), // Add memberID as optional
+  memberID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام").optional(), // Add memberID with validation
   birthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
   gender: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
   relationship: z.string().min(1, "القرابة مطلوبة"),
   isDisabled: z.boolean().default(false),
   disabilityType: z.string().optional(),
+  hasChronicIllness: z.boolean().default(false),
+  chronicIllnessType: z.string().optional(),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -43,6 +45,8 @@ export default function MemberForm({
       relationship: "",
       isDisabled: false,
       disabilityType: "",
+      hasChronicIllness: false,
+      chronicIllnessType: "",
       ...initialData,
     },
   });
@@ -166,6 +170,27 @@ export default function MemberForm({
             placeholder="اذكر نوع الإعاقة"
             className="h-10 sm:h-11 text-sm sm:text-base mt-1"
             {...form.register("disabilityType")}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center space-x-2 space-x-reverse py-1">
+        <Switch
+          id="hasChronicIllness"
+          checked={form.watch("hasChronicIllness")}
+          onCheckedChange={(checked) => form.setValue("hasChronicIllness", checked)}
+        />
+        <Label htmlFor="hasChronicIllness" className="text-sm sm:text-base font-medium">يعاني من مرض مزمن</Label>
+      </div>
+
+      {form.watch("hasChronicIllness") && (
+        <div>
+          <Label htmlFor="chronicIllnessType" className="text-sm sm:text-base font-medium">نوع المرض المزمن</Label>
+          <Input
+            id="chronicIllnessType"
+            placeholder="اذكر نوع المرض المزمن"
+            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
+            {...form.register("chronicIllnessType")}
           />
         </div>
       )}

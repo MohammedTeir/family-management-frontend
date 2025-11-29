@@ -13,7 +13,7 @@ import { FileText, Search, Eye, Check, X, Clock, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getRequestStatusInArabic, getRequestTypeInArabic, formatDate } from "@/lib/utils";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 

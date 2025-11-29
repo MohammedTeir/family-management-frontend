@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, LogOut, User, Users, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 
 
@@ -45,7 +45,12 @@ export function Header() {
       case 'admin':
         return 'مشرف';
       case 'head':
-        return 'رب أسرة';
+        // Use gender-appropriate term based on family data if available
+        if (family?.headGender === 'female') {
+          return 'ربة أسرة';
+        } else {
+          return 'رب أسرة';
+        }
       default:
         return role;
     }
@@ -59,7 +64,7 @@ export function Header() {
     }
   };
 
-  // Get display name - prefer husband name for family heads, fallback to username
+  // Get display name - use head's name for family heads, fallback to username
   const getDisplayName = () => {
     if (user?.role === 'head' && family?.husbandName) {
       return family.husbandName;

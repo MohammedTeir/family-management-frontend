@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
 const notificationSchema = z.object({

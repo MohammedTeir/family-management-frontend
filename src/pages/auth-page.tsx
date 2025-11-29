@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { validatePasswordWithPolicy } from "@/lib/utils";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { AuthSkeleton } from "@/components/ui/auth-skeleton";
 
 const loginSchema = z.object({
@@ -35,16 +35,32 @@ const loginSchema = z.object({
 });
 
 const registrationSchema = z.object({
-  husbandName: z.string().min(1, "الاسم مطلوب"),
-  husbandID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
-  husbandBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
-  husbandJob: z.string().min(1, "المهنة مطلوبة"),
-  primaryPhone: z.string().min(1, "رقم الجوال مطلوب"),
+  headName: z.string().min(1, "الاسم مطلوب"),
+  headID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
+  headBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
+  headJob: z.string().min(1, "المهنة مطلوبة"),
+  headGender: z.enum(['male', 'female', 'other']).default('male'),
+  primaryPhone: z.string().regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
   confirmPassword: z.string(),
+  spouseName: z.string().optional(),
+  spouseID: z.string().regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "كلمة المرور غير متطابقة",
   path: ["confirmPassword"],
+}).refine((data) => {
+  // If head is female (wife), then husband (spouse) is mandatory
+  if (data.headGender === 'female' && (!data.spouseName || data.spouseName.trim() === "")) {
+    return false;
+  }
+  // If head is female (wife), then husband ID (spouseID) is mandatory
+  if (data.headGender === 'female' && (!data.spouseID || data.spouseID.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "بيانات الزوج مطلوبة عندما تكون رب الأسرة أنثى",
+  path: ["spouseName"] // This will show the error on the spouseName field
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -69,21 +85,35 @@ export default function AuthPage() {
   const registrationForm = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
-      husbandName: "",
-      husbandID: "",
-      husbandBirthDate: "",
-      husbandJob: "",
+      headName: "",
+      headID: "",
+      headBirthDate: "",
+      headJob: "",
+      headGender: 'male',
       primaryPhone: "",
       password: "",
       confirmPassword: "",
+      spouseName: "",
+      spouseID: "",
     },
   });
 
   const registrationMutation = useMutation({
     mutationFn: async (data: RegistrationFormData) => {
-      const { confirmPassword, ...familyData } = data;
+      const { confirmPassword, ...formData } = data;
+      // Map the new field names to the old ones for backend compatibility
+      const familyData = {
+        ...formData,
+        husbandName: formData.headName,
+        husbandID: formData.headID,
+        husbandBirthDate: formData.headBirthDate,
+        husbandJob: formData.headJob,
+        wifeName: formData.spouseName || null,
+        wifeID: formData.spouseID || null,
+        // Keep headGender for user creation
+      };
       const res = await apiRequest("POST", "/api/register-family", {
-        user: { password: data.password },
+        user: { password: data.password, gender: data.headGender },
         family: familyData,
         members: []
       });
@@ -338,64 +368,115 @@ export default function AuthPage() {
                 <TabsContent value="register">
                   <form onSubmit={registrationForm.handleSubmit(onRegister)} className="space-y-3 sm:space-y-4">
                     <div>
-                      <Label htmlFor="husbandName" className="text-sm sm:text-base font-medium">الاسم الرباعي</Label>
+                      <Label htmlFor="headName" className="text-sm sm:text-base font-medium">الاسم الرباعي</Label>
                       <Input
-                        id="husbandName"
+                        id="headName"
                         placeholder="محمد فتح محمود أبو طير"
-                        {...registrationForm.register("husbandName")}
+                        {...registrationForm.register("headName")}
                         className="h-10 sm:h-11 text-sm sm:text-base mt-1"
                       />
-                      {registrationForm.formState.errors.husbandName && (
+                      {registrationForm.formState.errors.headName && (
                         <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.husbandName.message}
+                          {registrationForm.formState.errors.headName.message}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="husbandID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
+                      <Label htmlFor="headID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
                       <Input
-                        id="husbandID"
+                        id="headID"
                         placeholder="405857004"
-                        {...registrationForm.register("husbandID")}
+                        {...registrationForm.register("headID")}
                         className="h-10 sm:h-11 text-sm sm:text-base mt-1"
                       />
-                      {registrationForm.formState.errors.husbandID && (
+                      {registrationForm.formState.errors.headID && (
                         <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.husbandID.message}
+                          {registrationForm.formState.errors.headID.message}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="husbandBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد</Label>
+                      <Label htmlFor="headBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد</Label>
                       <Input
-                        id="husbandBirthDate"
+                        id="headBirthDate"
                         type="date"
-                        {...registrationForm.register("husbandBirthDate")}
+                        {...registrationForm.register("headBirthDate")}
                         className="h-10 sm:h-11 text-sm sm:text-base mt-1"
                       />
-                      {registrationForm.formState.errors.husbandBirthDate && (
+                      {registrationForm.formState.errors.headBirthDate && (
                         <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.husbandBirthDate.message}
+                          {registrationForm.formState.errors.headBirthDate.message}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor="husbandJob" className="text-sm sm:text-base font-medium">المهنة</Label>
+                      <Label htmlFor="headJob" className="text-sm sm:text-base font-medium">المهنة</Label>
                       <Input
-                        id="husbandJob"
+                        id="headJob"
                         placeholder="مهندس"
-                        {...registrationForm.register("husbandJob")}
+                        {...registrationForm.register("headJob")}
                         className="h-10 sm:h-11 text-sm sm:text-base mt-1"
                       />
-                      {registrationForm.formState.errors.husbandJob && (
+                      {registrationForm.formState.errors.headJob && (
                         <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.husbandJob.message}
+                          {registrationForm.formState.errors.headJob.message}
                         </p>
                       )}
                     </div>
+
+                    <div>
+                      <Label htmlFor="headGender" className="text-sm sm:text-base font-medium">الجنس</Label>
+                      <Select
+                        value={registrationForm.watch("headGender")}
+                        onValueChange={(value) => registrationForm.setValue("headGender", value as any)}
+                      >
+                        <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
+                          <SelectValue placeholder="اختر الجنس" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male" className="text-sm sm:text-base">ذكر</SelectItem>
+                          <SelectItem value="female" className="text-sm sm:text-base">أنثى</SelectItem>
+                          <SelectItem value="other" className="text-sm sm:text-base">آخر</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {registrationForm.watch("headGender") === "female" && (
+                      <>
+                        <div>
+                          <Label htmlFor="spouseName" className="text-sm sm:text-base font-medium">اسم الزوج *</Label>
+                          <Input
+                            id="spouseName"
+                            placeholder="اسم الزوج"
+                            {...registrationForm.register("spouseName")}
+                            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
+                          />
+                          {registrationForm.formState.errors.spouseName && (
+                            <p className="text-xs sm:text-sm text-destructive mt-1">
+                              {registrationForm.formState.errors.spouseName.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label htmlFor="spouseID" className="text-sm sm:text-base font-medium">رقم هوية الزوج *</Label>
+                          <Input
+                            id="spouseID"
+                            placeholder="رقم هوية الزوج"
+                            {...registrationForm.register("spouseID")}
+                            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
+                          />
+                          {registrationForm.formState.errors.spouseID && (
+                            <p className="text-xs sm:text-sm text-destructive mt-1">
+                              {registrationForm.formState.errors.spouseID.message}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
 
                     <div>
                       <Label htmlFor="primaryPhone" className="text-sm sm:text-base font-medium">رقم الجوال</Label>

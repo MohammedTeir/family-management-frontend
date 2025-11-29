@@ -140,6 +140,16 @@ export default function ImportHeads() {
         husbandID: "123456789",
         husbandBirthDate: "1980-01-15",
         husbandJob: "مهندس",
+        // Wife data (optional fields)
+        wifeName: "فاطمة محمد ابو طير",
+        wifeID: "123456788",
+        wifeBirthDate: "1982-05-20",
+        wifeJob: "معلمة",
+        wifePregnant: "لا",
+        wifeHasDisability: "لا",
+        wifeDisabilityType: "",
+        wifeHasChronicIllness: "لا",
+        wifeChronicIllnessType: "",
         primaryPhone: "0599123456",
         secondaryPhone: "0567789123",
         originalResidence: "غزة - الشجاعية",
@@ -147,7 +157,7 @@ export default function ImportHeads() {
         isDisplaced: "نعم",
         displacedLocation: "رفح",
         isAbroad: "لا",
-        warDamage2024: "نعم",
+        warDamage2023: "نعم",
         warDamageDescription: "تدمير كامل للمنزل",
         branch: "غزة",
         landmarkNear: "بجانب مسجد الشهداء",
@@ -159,9 +169,17 @@ export default function ImportHeads() {
       }
     ];
 
-    const csvContent = Object.keys(templateData[0]).join(',') + '\n' + 
-                      templateData.map(row => Object.values(row).join(',')).join('\n');
-    
+    const csvContent = Object.keys(templateData[0]).join(',') + '\n' +
+                      templateData.map(row => {
+                        // Properly escape values that might contain commas
+                        return Object.values(row).map(value => {
+                          if (typeof value === 'string' && value.includes(',')) {
+                            return `"${value}"`;
+                          }
+                          return value;
+                        }).join(',');
+                      }).join('\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -212,7 +230,7 @@ export default function ImportHeads() {
                     <li>الحقول المطلوبة: اسم رب الأسرة (husbandName) ورقم الهوية (husbandID)</li>
                     <li>رقم الهوية يجب أن يكون 9 أرقام</li>
                     <li>يتم استخدام رقم الهوية كاسم مستخدم وكلمة مرور افتراضية</li>
-                    <li>الحقول الاختيارية: تاريخ الميلاد، المهنة، أرقام الهواتف، عنوان السكن، إلخ</li>
+                    <li>الحقول الاختيارية: معلومات الزوجة (wifeName, wifeID، إلخ)، تاريخ الميلاد، المهنة، أرقام الهواتف، عنوان السكن، إلخ</li>
                   </ul>
                 </div>
               </AlertDescription>

@@ -41,7 +41,7 @@ export const families = pgTable("families", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const wives = pgTable("wives", {
+export const wife = pgTable("wife", {
   id: serial("id").primaryKey(),
   familyId: integer("family_id").references(() => families.id).notNull(),
   wifeName: text("wife_name").notNull(),
@@ -157,7 +157,7 @@ export const familiesRelations = relations(families, ({ one, many }) => ({
     fields: [families.userId],
     references: [users.id],
   }),
-  wives: many(wives),
+  wife: one(wife),
   members: many(members),
   requests: many(requests),
   documents: many(documents),
@@ -194,9 +194,9 @@ export const supportVouchersRelations = relations(supportVouchers, ({ one, many 
   recipients: many(voucherRecipients),
 }));
 
-export const wivesRelations = relations(wives, ({ one }) => ({
+export const wifeRelations = relations(wife, ({ one }) => ({
   family: one(families, {
-    fields: [wives.familyId],
+    fields: [wife.familyId],
     references: [families.id],
   }),
 }));
@@ -228,7 +228,7 @@ export const insertFamilySchema = createInsertSchema(families).omit({
   createdAt: true,
 });
 
-export const insertWifeSchema = createInsertSchema(wives).omit({
+export const insertWifeSchema = createInsertSchema(wife).omit({
   id: true,
   createdAt: true,
 });
@@ -280,7 +280,7 @@ export type User = typeof users.$inferSelect;
 export type InsertFamily = z.infer<typeof insertFamilySchema>;
 export type Family = typeof families.$inferSelect;
 export type InsertWife = z.infer<typeof insertWifeSchema>;
-export type Wife = typeof wives.$inferSelect;
+export type Wife = typeof wife.$inferSelect;
 export type InsertMember = z.infer<typeof insertMemberSchema>;
 export type Member = typeof members.$inferSelect;
 export type InsertRequest = z.infer<typeof insertRequestSchema>;

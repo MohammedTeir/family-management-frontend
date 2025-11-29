@@ -15,7 +15,7 @@ import { Users, FileText, Clock, AlertTriangle, Bell, Eye, Check, X, Edit } from
 import { Link, useLocation } from "wouter";
 import { getRequestStatusInArabic, getRequestTypeInArabic, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { Separator } from "@radix-ui/react-select";
 import { DashboardSkeleton } from "@/components/ui/dashboard-skeleton";
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
   const totalFamilies = families?.length || 0;
   const totalMembers = families?.reduce((sum: number, family: any) => sum + (family.totalMembers || 0), 0) || 0;
   const pendingRequests = requests?.filter((req: any) => req.status === 'pending') || [];
-  const damagedFamilies = families?.filter((family: any) => family.warDamage2024) || [];
+  const damagedFamilies = families?.filter((family: any) => family.warDamage2023) || [];
   const displacedFamilies = families?.filter((family: any) => family.isDisplaced) || [];
   const abroadFamilies = families?.filter((family: any) => family.isAbroad) || [];
   const approvedRequests = requests?.filter((req: any) => req.status === 'approved') || [];
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                     <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-accent" />
                   </div>
                   <div className="mr-3 md:mr-4">
-                    <p className="text-xs md:text-sm text-muted-foreground">أسر متضررة 2024</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">أسر متضررة 2023</p>
                     <p className="text-xl md:text-2xl font-bold text-foreground">{damagedFamilies.length}</p>
                   </div>
                 </div>
@@ -448,7 +448,9 @@ export default function AdminDashboard() {
                       <h4 className="font-semibold text-foreground mb-2">معلومات مقدم الطلب</h4>
                       <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row sm:justify-between">
-                          <span className="text-muted-foreground">اسم رب الأسرة:</span>
+                          <span className="text-muted-foreground">
+                            {selectedRequest.family?.headGender === 'female' ? 'اسم ربة الأسرة:' : 'اسم رب الأسرة:'}
+                          </span>
                           <span className="font-medium text-right">{selectedRequest.family?.husbandName || 'غير محدد'}</span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:justify-between">

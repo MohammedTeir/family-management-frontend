@@ -13,7 +13,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Link, useRoute } from "wouter";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { apiClient } from "@/lib/api";
 import { PageWrapper } from "@/components/layout/page-wrapper";
@@ -188,7 +188,7 @@ export default function Summary() {
         ['رقم الجوال البديل', family.secondaryPhone || ''],
         ['السكن الأصلي', family.originalResidence || ''],
         ['حالة السكن الحالي', getHousingStatus()],
-        ['الاضرار الناجمة عن حرب 2024', family.warDamage2024 ? (family.warDamageDescription || 'نعم') : 'لا'],
+        ['الاضرار الناجمة عن حرب 2023', family.warDamage2023 ? (family.warDamageDescription || 'نعم') : 'لا'],
         ['الفرع', getBranchInArabic(family.branch) || ''],
         ['هل يوجد افراد ذوي اعاقة في العائلة', family.hasDisabledMembers ? 'نعم' : 'لا'],
         ['هل لديك ابناء اقل من سنتين', family.hasChildrenUnderTwo ? 'نعم' : 'لا'],
@@ -364,18 +364,14 @@ export default function Summary() {
         ['الأبناء', children.filter((child: any) => child.gender === 'male').length.toString()],
         ['البنات', children.filter((child: any) => child.gender === 'female').length.toString()],
         ['الحالة الاجتماعية', family.socialStatus ? getSocialStatusInArabic(family.socialStatus) : 'غير محدد'],
-        ...(family.wives && family.wives.length > 0 ?
-          family.wives.map((wife: any, index: number) => [
-            `حالة الحمل${family.wives.length > 1 ? ` للزوجة ${index + 1}` : ''}`,
-            wife.wifePregnant ? 'حامل' : 'غير حامل'
-          ]) :
-          [['حالة الحمل', family.wifePregnant ? 'حامل' : 'غير حامل']]
+        ...(family.wifePregnant !== undefined ?
+          [['حالة الحمل', family.wifePregnant ? 'حامل' : 'غير حامل']] : []
         ),
         ['نازح', family.isDisplaced ? 'نعم' : 'لا'],
         ['موقع النزوح', family.isDisplaced ? (family.displacedLocation || '') : ''],
         ['مغترب بالخارج', family.isAbroad ? 'نعم' : 'لا'],
-        ['أضرار الحرب 2024', family.warDamage2024 ? 'نعم' : 'لا'],
-        ['تفاصيل الأضرار', family.warDamage2024 ? (family.warDamageDescription || '') : ''],
+        ['أضرار الحرب 2023', family.warDamage2023 ? 'نعم' : 'لا'],
+        ['تفاصيل الأضرار', family.warDamage2023 ? (family.warDamageDescription || '') : ''],
         ['إجمالي المعاقين', (members ? members.filter((m: any) => m.isDisabled).length : 0).toString()],
         ['الأطفال المعاقين', children.filter((child: any) => child.isDisabled).length.toString()],
         ['الأطفال أقل من سنتين', children.filter((child: any) => calculateAge(child.birthDate) < 2).length.toString()],
@@ -441,15 +437,14 @@ export default function Summary() {
         }
       };
 
-      // Create wives array for both Excel sheets
-      const wives = family.wives && family.wives.length > 0 ? family.wives : 
-        (family.wifeName ? [{
-          wifeName: family.wifeName,
-          wifeID: family.wifeID,
-          wifeJob: family.wifeJob,
-          wifeBirthDate: family.wifeBirthDate,
-          wifePregnant: family.wifePregnant
-        }] : []);
+      // Create wives array for both Excel sheets - now always just one wife
+      const wives = family.wifeName ? [{
+        wifeName: family.wifeName,
+        wifeID: family.wifeID,
+        wifeJob: family.wifeJob,
+        wifeBirthDate: family.wifeBirthDate,
+        wifePregnant: family.wifePregnant
+      }] : [];
 
       // Create a new workbook
       const workbook = new ExcelJS.Workbook();
@@ -513,28 +508,28 @@ export default function Summary() {
       // 1. Family Information Sheet (بيانات الأسرة)
       const familySheet = workbook.addWorksheet('بيانات الأسرة');
 
-      const wifeHeaders = wives.flatMap((wife: any, index: number) => [
-        `هل الزوجة${wives.length > 1 ? ` ${index + 1}` : ''} حامل`,
-        `عمل الزوجة${wives.length > 1 ? ` ${index + 1}` : ''}`,
-        `عمر الزوجة${wives.length > 1 ? ` ${index + 1}` : ''}`,
-        `تاريخ ميلاد الزوجة${wives.length > 1 ? ` ${index + 1}` : ''}`,
-        `رقم هوية الزوجة${wives.length > 1 ? ` ${index + 1}` : ''}`,
-        `اسم الزوجة${wives.length > 1 ? ` ${index + 1}` : ''} رباعي`
-      ]);
+      const wifeHeaders = wives.length > 0 ? [
+        'هل الزوجة حامل',
+        'عمل الزوجة',
+        'عمر الزوجة',
+        'تاريخ ميلاد الزوجة',
+        'رقم هوية الزوجة',
+        'اسم الزوجة رباعي'
+      ] : [];
 
-      const wifeData = wives.flatMap((wife: any) => [
-        wife.wifePregnant ? 'نعم' : 'لا',
-        wife.wifeJob || '',
-        formatAgeForPDF(wife.wifeBirthDate || ''),
-        wife.wifeBirthDate || '',
-        wife.wifeID || '',
-        wife.wifeName || ''
-      ]);
+      const wifeData = wives.length > 0 ? [
+        wives[0].wifePregnant ? 'نعم' : 'لا',
+        wives[0].wifeJob || '',
+        formatAgeForPDF(wives[0].wifeBirthDate || ''),
+        wives[0].wifeBirthDate || '',
+        wives[0].wifeID || '',
+        wives[0].wifeName || ''
+      ] : [];
 
       const familyHeaders = [
         'مغترب بالخارج', 'الحالة الاجتماعية', 'عدد الأطفال', 
         'عدد الإناث', 'عدد الذكور', 'إجمالي أفراد الأسرة', 'هل لديك ابناء اقل من سنتين', 
-        'هل يوجد افراد ذوي اعاقة في العائلة', 'الفرع', 'الاضرار الناجمة عن حرب 2024', 
+        'هل يوجد افراد ذوي اعاقة في العائلة', 'الفرع', 'الاضرار الناجمة عن حرب 2023',
         'حالة السكن الحالي', 'السكن الأصلي', 'رقم الجوال البديل', 'رقم الجوال للتواصل', 
         ...wifeHeaders,
         'عمل الزوج', 'عمر الزوج', 'تاريخ ميلاد الزوج', 'رقم هوية الزوج', 'اسم الزوج رباعي'
@@ -550,7 +545,7 @@ export default function Summary() {
         family.hasChildrenUnderTwo ? 'نعم' : 'لا',
         family.hasDisabledMembers ? 'نعم' : 'لا',
         getBranchInArabic(family.branch) || '',
-        family.warDamage2024 ? (family.warDamageDescription || 'نعم') : 'لا',
+        family.warDamage2023 ? (family.warDamageDescription || 'نعم') : 'لا',
         getHousingStatus(),
         family.originalResidence || '',
         family.secondaryPhone || '',
@@ -713,15 +708,15 @@ export default function Summary() {
         ['الأبناء', children.filter((child: any) => child.gender === 'male').length.toString()],
         ['البنات', children.filter((child: any) => child.gender === 'female').length.toString()],
         ['الحالة الاجتماعية', family.socialStatus ? getSocialStatusInArabic(family.socialStatus) : 'غير محدد'],
-        ...(wives.map((wife: any, index: number) => [
-          `حالة الحمل${wives.length > 1 ? ` للزوجة ${index + 1}` : ''}`,
-          wife.wifePregnant ? 'حامل' : 'غير حامل'
-        ])),
+        ...(wives.length > 0 ? [[
+          'حالة الحمل',
+          wives[0].wifePregnant ? 'حامل' : 'غير حامل'
+        ]] : []),
         ['نازح', family.isDisplaced ? 'نعم' : 'لا'],
         ['موقع النزوح', family.isDisplaced ? (family.displacedLocation || '') : ''],
         ['مغترب بالخارج', family.isAbroad ? 'نعم' : 'لا'],
-        ['أضرار الحرب 2024', family.warDamage2024 ? 'نعم' : 'لا'],
-        ['تفاصيل الأضرار', family.warDamage2024 ? (family.warDamageDescription || '') : ''],
+        ['أضرار الحرب 2023', family.warDamage2023 ? 'نعم' : 'لا'],
+        ['تفاصيل الأضرار', family.warDamage2023 ? (family.warDamageDescription || '') : ''],
         ['إجمالي المعاقين', (members ? members.filter((m: any) => m.isDisabled).length : 0).toString()],
         ['الأطفال المعاقين', children.filter((child: any) => child.isDisabled).length.toString()],
         ['الأطفال أقل من سنتين', children.filter((child: any) => calculateAge(child.birthDate) < 2).length.toString()],
@@ -1568,9 +1563,9 @@ export default function Summary() {
                     </div>
                   )}
                     <div>
-                      <Label className="text-xs sm:text-sm font-medium text-muted-foreground">أضرار الحرب 2024</Label>
+                      <Label className="text-xs sm:text-sm font-medium text-muted-foreground">أضرار الحرب 2023</Label>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                        {family?.warDamage2024 ? (
+                        {family?.warDamage2023 ? (
                           <Badge variant="destructive" className="text-xs w-fit">
                             <AlertTriangle className="h-3 w-3 ml-1" />
                             متضرر ({getDamageDescriptionInArabic(family?.warDamageDescription)})

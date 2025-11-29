@@ -10,26 +10,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const familySchema = z.object({
-  husbandName: z.string().min(1, "الاسم مطلوب"),
-  husbandID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
-  husbandBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
-  husbandJob: z.string().min(1, "المهنة مطلوبة"),
-  primaryPhone: z.string().min(1, "رقم الجوال مطلوب"),
-  secondaryPhone: z.string().optional(),
-  wifeName: z.string().optional(),
-  wifeID: z.string().optional(),
-  wifeBirthDate: z.string().optional(),
-  wifeJob: z.string().optional(),
-  wifePregnant: z.string().optional(),
+  headName: z.string().min(1, "الاسم مطلوب"),
+  headID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
+  headBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
+  headJob: z.string().min(1, "المهنة مطلوبة"),
+  headGender: z.enum(['male', 'female', 'other']).default('male'),
+  primaryPhone: z.string().regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
+  secondaryPhone: z.string().regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال البديل يجب أن يكون 9 أو 10 أرقام").optional(),
+  spouseName: z.string().optional(),
+  spouseID: z.string().regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").optional(),
+  spouseBirthDate: z.string().optional(),
+  spouseJob: z.string().optional(),
+  spousePregnant: z.string().optional(),
   originalResidence: z.string().optional(),
   currentHousingStatus: z.string().optional(),
   isDisplaced: z.boolean().default(false),
   displacedLocation: z.string().optional(),
   isAbroad: z.boolean().default(false),
-  warDamage2024: z.string().optional(),
+  warDamage2023: z.string().optional(),
   branch: z.string().optional(),
   landmarkNear: z.string().optional(),
   socialStatus: z.string().optional(),
+}).refine((data) => {
+  // If head is female (wife), then husband (spouse) is mandatory
+  if (data.headGender === 'female' && (!data.spouseName || data.spouseName.trim() === "")) {
+    return false;
+  }
+  // If head is female (wife), then husband ID (spouseID) is mandatory
+  if (data.headGender === 'female' && (!data.spouseID || data.spouseID.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "بيانات الزوج مطلوبة عندما تكون رب الأسرة أنثى",
+  path: ["spouseName"] // This will show the error on the spouseName field
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
@@ -50,102 +64,149 @@ export default function FamilyForm({
   const form = useForm<FamilyFormData>({
     resolver: zodResolver(familySchema),
     defaultValues: {
-      husbandName: "",
-      husbandID: "",
-      husbandBirthDate: "",
-      husbandJob: "",
-      primaryPhone: "",
-      secondaryPhone: "",
-      wifeName: "",
-      wifeID: "",
-      wifeBirthDate: "",
-      wifeJob: "",
-      wifePregnant: "",
-      originalResidence: "",
-      currentHousingStatus: "",
-      isDisplaced: false,
-      displacedLocation: "",
-      isAbroad: false,
-      warDamage2024: "",
-      branch: "",
-      landmarkNear: "",
-      socialStatus: "",
+      headName: initialData?.headName || initialData?.husbandName || "",
+      headID: initialData?.headID || initialData?.husbandID || "",
+      headBirthDate: initialData?.headBirthDate || initialData?.husbandBirthDate || "",
+      headJob: initialData?.headJob || initialData?.husbandJob || "",
+      headGender: initialData?.headGender || 'male',
+      primaryPhone: initialData?.primaryPhone || "",
+      secondaryPhone: initialData?.secondaryPhone || "",
+      spouseName: initialData?.spouseName || initialData?.wifeName || "",
+      spouseID: initialData?.spouseID || initialData?.wifeID || "",
+      spouseBirthDate: initialData?.spouseBirthDate || initialData?.wifeBirthDate || "",
+      spouseJob: initialData?.spouseJob || initialData?.wifeJob || "",
+      spousePregnant: initialData?.spousePregnant?.toString() || initialData?.wifePregnant?.toString() || "",
+      spouseHasDisability: initialData?.spouseHasDisability !== undefined ? initialData?.spouseHasDisability : initialData?.wifeHasDisability,
+      spouseDisabilityType: initialData?.spouseDisabilityType || initialData?.wifeDisabilityType || "",
+      spouseHasChronicIllness: initialData?.spouseHasChronicIllness !== undefined ? initialData?.spouseHasChronicIllness : initialData?.wifeHasChronicIllness,
+      spouseChronicIllnessType: initialData?.spouseChronicIllnessType || initialData?.wifeChronicIllnessType || "",
+      originalResidence: initialData?.originalResidence || "",
+      currentHousingStatus: initialData?.currentHousingStatus || "",
+      isDisplaced: initialData?.isDisplaced || false,
+      displacedLocation: initialData?.displacedLocation || "",
+      isAbroad: initialData?.isAbroad || false,
+      warDamage2023: initialData?.warDamage2023 || "",
+      branch: initialData?.branch || "",
+      landmarkNear: initialData?.landmarkNear || "",
+      socialStatus: initialData?.socialStatus || "",
       ...initialData,
     },
   });
 
   const handleSubmit = (data: FamilyFormData) => {
-    onSubmit(data);
+    // Map the form fields to the backend format (backward compatibility)
+    const backendData = {
+      ...data,
+      husbandName: data.headName,
+      husbandID: data.headID,
+      husbandBirthDate: data.headBirthDate,
+      husbandJob: data.headJob,
+      wifeName: data.spouseName,
+      wifeID: data.spouseID,
+      wifeBirthDate: data.spouseBirthDate,
+      wifeJob: data.spouseJob,
+      wifePregnant: data.spousePregnant,
+      // Remove the form-specific field names that aren't expected by backend
+      headName: undefined,
+      headID: undefined,
+      headBirthDate: undefined,
+      headJob: undefined,
+      spouseName: undefined,
+      spouseID: undefined,
+      spouseBirthDate: undefined,
+      spouseJob: undefined,
+      spousePregnant: undefined,
+    };
+
+    onSubmit(backendData);
   };
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Husband Information */}
+      {/* Head of Household Information */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg sm:text-xl">بيانات رب الأسرة</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">بيانات رب/ربة الأسرة</CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <Label htmlFor="husbandName" className="text-sm sm:text-base font-medium">الاسم الرباعي *</Label>
+              <Label htmlFor="headName" className="text-sm sm:text-base font-medium">الاسم الرباعي *</Label>
               <Input
-                id="husbandName"
+                id="headName"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("husbandName")}
+                {...form.register("headName")}
               />
-              {form.formState.errors.husbandName && (
+              {form.formState.errors.headName && (
                 <p className="text-xs sm:text-sm text-destructive mt-1">
-                  {form.formState.errors.husbandName.message}
+                  {form.formState.errors.headName.message}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="husbandID" className="text-sm sm:text-base font-medium">رقم الهوية *</Label>
+              <Label htmlFor="headID" className="text-sm sm:text-base font-medium">رقم الهوية *</Label>
               <Input
-                id="husbandID"
+                id="headID"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("husbandID")}
+                {...form.register("headID")}
               />
-              {form.formState.errors.husbandID && (
+              {form.formState.errors.headID && (
                 <p className="text-xs sm:text-sm text-destructive mt-1">
-                  {form.formState.errors.husbandID.message}
+                  {form.formState.errors.headID.message}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="husbandBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد *</Label>
+              <Label htmlFor="headBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد *</Label>
               <Input
-                id="husbandBirthDate"
+                id="headBirthDate"
                 type="date"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("husbandBirthDate")}
+                {...form.register("headBirthDate")}
               />
-              {form.formState.errors.husbandBirthDate && (
+              {form.formState.errors.headBirthDate && (
                 <p className="text-xs sm:text-sm text-destructive mt-1">
-                  {form.formState.errors.husbandBirthDate.message}
+                  {form.formState.errors.headBirthDate.message}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="husbandJob" className="text-sm sm:text-base font-medium">المهنة *</Label>
+              <Label htmlFor="headJob" className="text-sm sm:text-base font-medium">المهنة *</Label>
               <Input
-                id="husbandJob"
+                id="headJob"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("husbandJob")}
+                {...form.register("headJob")}
               />
-              {form.formState.errors.husbandJob && (
+              {form.formState.errors.headJob && (
                 <p className="text-xs sm:text-sm text-destructive mt-1">
-                  {form.formState.errors.husbandJob.message}
+                  {form.formState.errors.headJob.message}
                 </p>
               )}
+            </div>
+
+            <div>
+              <Label htmlFor="headGender" className="text-sm sm:text-base font-medium">الجنس</Label>
+              <Select
+                disabled={!isEditable}
+                value={form.watch("headGender")}
+                onValueChange={(value) => form.setValue("headGender", value)}
+              >
+                <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
+                  <SelectValue placeholder="اختر الجنس" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male" className="text-sm sm:text-base">ذكر</SelectItem>
+                  <SelectItem value="female" className="text-sm sm:text-base">أنثى</SelectItem>
+                  <SelectItem value="other" className="text-sm sm:text-base">آخر</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -176,62 +237,78 @@ export default function FamilyForm({
         </CardContent>
       </Card>
 
-      {/* Wife Information */}
+      {/* Spouse Information */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg sm:text-xl">بيانات الزوجة</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">
+            {form.watch("headGender") === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <Label htmlFor="wifeName" className="text-sm sm:text-base font-medium">الاسم الرباعي</Label>
+              <Label htmlFor="spouseName" className="text-sm sm:text-base font-medium">
+                {form.watch("headGender") === "female" ? "الاسم الرباعي *" : "الاسم الرباعي"}
+              </Label>
               <Input
-                id="wifeName"
+                id="spouseName"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("wifeName")}
+                {...form.register("spouseName")}
               />
+              {form.formState.errors.spouseName && (
+                <p className="text-xs sm:text-sm text-destructive mt-1">
+                  {form.formState.errors.spouseName.message}
+                </p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="wifeID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
+              <Label htmlFor="spouseID" className="text-sm sm:text-base font-medium">
+                {form.watch("headGender") === "female" ? "رقم الهوية *" : "رقم الهوية"}
+              </Label>
               <Input
-                id="wifeID"
+                id="spouseID"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("wifeID")}
+                {...form.register("spouseID")}
               />
+              {form.formState.errors.spouseID && (
+                <p className="text-xs sm:text-sm text-destructive mt-1">
+                  {form.formState.errors.spouseID.message}
+                </p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="wifeBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد</Label>
+              <Label htmlFor="spouseBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد</Label>
               <Input
-                id="wifeBirthDate"
+                id="spouseBirthDate"
                 type="date"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("wifeBirthDate")}
+                {...form.register("spouseBirthDate")}
               />
             </div>
 
             <div>
-              <Label htmlFor="wifeJob" className="text-sm sm:text-base font-medium">المهنة</Label>
+              <Label htmlFor="spouseJob" className="text-sm sm:text-base font-medium">المهنة</Label>
               <Input
-                id="wifeJob"
+                id="spouseJob"
                 disabled={!isEditable}
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("wifeJob")}
+                {...form.register("spouseJob")}
               />
             </div>
 
             <div>
-              <Label htmlFor="wifePregnant" className="text-sm sm:text-base font-medium">حالة الحمل</Label>
+              <Label htmlFor="spousePregnant" className="text-sm sm:text-base font-medium">حالة الحمل</Label>
               <Input
-                id="wifePregnant"
+                id="spousePregnant"
                 disabled={!isEditable}
                 placeholder="حامل - الشهر السادس"
                 className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                {...form.register("wifePregnant")}
+                {...form.register("spousePregnant")}
               />
             </div>
           </div>
@@ -320,12 +397,12 @@ export default function FamilyForm({
             </div>
 
             <div>
-              <Label htmlFor="warDamage2024" className="text-sm sm:text-base font-medium">أضرار 2024</Label>
+              <Label htmlFor="warDamage2023" className="text-sm sm:text-base font-medium">أضرار 2023</Label>
               <Textarea
-                id="warDamage2024"
+                id="warDamage2023"
                 disabled={!isEditable}
                 className="min-h-20 sm:min-h-24 text-sm sm:text-base mt-1"
-                {...form.register("warDamage2024")}
+                {...form.register("warDamage2023")}
               />
             </div>
 
@@ -341,9 +418,12 @@ export default function FamilyForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="married" className="text-sm sm:text-base">متزوج</SelectItem>
-                  <SelectItem value="polygamous" className="text-sm sm:text-base">متعدد الزوجات</SelectItem>
-                  <SelectItem value="divorced" className="text-sm sm:text-base">مطلق</SelectItem>
-                  <SelectItem value="widowed" className="text-sm sm:text-base">أرملة</SelectItem>
+                  <SelectItem value="polygamous" className="text-sm sm:text-base">متعدد زوجات</SelectItem>
+                  <SelectItem value="widowed" className="text-sm sm:text-base">ارملة</SelectItem>
+                  <SelectItem value="vulnerable_family" className="text-sm sm:text-base">اسر هشة (ايتام)</SelectItem>
+                  <SelectItem value="abandoned" className="text-sm sm:text-base">متروكة</SelectItem>
+                  <SelectItem value="divorced" className="text-sm sm:text-base">مطلقة</SelectItem>
+                  <SelectItem value="single" className="text-sm sm:text-base">عانس</SelectItem>
                   <SelectItem value="custom" className="text-sm sm:text-base">أخرى</SelectItem>
                 </SelectContent>
               </Select>

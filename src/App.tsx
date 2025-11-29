@@ -4,11 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
-import { useSettings } from "@/hooks/use-settings";
 import { ProtectedRoute } from "./lib/protected-route";
-import { useEffect, useState, createContext, useContext, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { useAuth } from "./hooks/use-auth";
 import { apiClient } from "./lib/api";
+import { SettingsProvider, useSettingsContext } from "./contexts/SettingsContext";
 
 // 🚀 PERFORMANCE: Static imports for critical pages (loaded immediately)
 import NotFound from "@/pages/not-found";
@@ -19,6 +19,7 @@ import AuthPage from "@/pages/auth-page";
 const FamilyDashboard = lazy(() => import("@/pages/dashboard/family-dashboard"));
 const FamilyData = lazy(() => import("@/pages/dashboard/family-data"));
 const FamilyMembers = lazy(() => import("@/pages/dashboard/family-members"));
+const Orphans = lazy(() => import("@/pages/dashboard/orphans"));
 const Requests = lazy(() => import("@/pages/dashboard/requests"));
 const Notifications = lazy(() => import("@/pages/dashboard/notifications"));
 const PrintSummary = lazy(() => import("@/pages/dashboard/print-summary"));
@@ -39,6 +40,8 @@ const SettingsPage = lazy(() => import("@/pages/admin/settings"));
 const SupportVouchers = lazy(() => import("./pages/admin/support-vouchers"));
 const VoucherDetails = lazy(() => import("./pages/admin/voucher-details"));
 const ImportHeads = lazy(() => import("./pages/admin/import-heads"));
+const AdminOrphans = lazy(() => import("./pages/admin/orphans"));
+const AdminMembers = lazy(() => import("./pages/admin/members"));
 
 // Loading component for lazy-loaded routes
 const RouteLoading = () => (
@@ -60,6 +63,7 @@ function Router() {
         <ProtectedRoute path="/dashboard" component={FamilyDashboard} roles={['head','admin']} />
         <ProtectedRoute path="/dashboard/family" component={FamilyData} roles={['head','admin']} />
         <ProtectedRoute path="/dashboard/members" component={FamilyMembers} roles={['head','admin']} />
+        <ProtectedRoute path="/dashboard/orphans" component={Orphans} roles={['head','admin']} />
         <ProtectedRoute path="/dashboard/requests" component={Requests} roles={['head','admin']} />
         <ProtectedRoute path="/dashboard/notifications" component={Notifications} roles={['head','admin']} />
         <ProtectedRoute path="/dashboard/print-summary" component={PrintSummary} roles={['head','admin']} />
@@ -78,6 +82,8 @@ function Router() {
         <ProtectedRoute path="/admin/support-vouchers" component={SupportVouchers} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/support-vouchers/:id" component={props => <VoucherDetails {...props} />} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/import-heads" component={ImportHeads} roles={['admin', 'root']} />
+        <ProtectedRoute path="/admin/orphans" component={AdminOrphans} roles={['admin', 'root']} />
+        <ProtectedRoute path="/admin/members" component={AdminMembers} roles={['admin', 'root']} />
       </Suspense>
       
       {/* Static 404 route */}
@@ -86,26 +92,13 @@ function Router() {
   );
 }
 
-const SettingsContext = createContext<any>(null);
-
-function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const settingsApi = useSettings();
-  return (
-    <SettingsContext.Provider value={settingsApi}>
-      {children}
-    </SettingsContext.Provider>
-  );
-}
-
-export function useSettingsContext() {
-  return useContext(SettingsContext);
-}
 
 function AppContent() {
   const { user } = useAuth();
   const [maintenance, setMaintenance] = useState(false);
   const [location] = useLocation();
-  const { settings } = useSettingsContext();
+  const settingsContext = useSettingsContext();
+  const settings = settingsContext?.settings || {};
 
   useEffect(() => {
     // Apply theme color

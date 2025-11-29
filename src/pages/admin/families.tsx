@@ -16,7 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ExcelJS from 'exceljs';
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
 // 🚀 PERFORMANCE: Memoized component to prevent unnecessary re-renders
@@ -32,6 +32,18 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [displacedFilter, setDisplacedFilter] = useState('all');
   const [damagedFilter, setDamagedFilter] = useState('all');
   const [abroadFilter, setAbroadFilter] = useState('all');
+  const [socialStatusFilter, setSocialStatusFilter] = useState('all');
+  const [pregnantFilter, setPregnantFilter] = useState('all');
+  const [childrenFilter, setChildrenFilter] = useState('all');
+  const [membersFilter, setMembersFilter] = useState('all');
+  const [childrenMinCount, setChildrenMinCount] = useState('');
+  const [childrenMaxCount, setChildrenMaxCount] = useState('');
+  const [membersMinCount, setMembersMinCount] = useState('');
+  const [membersMaxCount, setMembersMaxCount] = useState('');
+  const [isExcelDialogOpen, setIsExcelDialogOpen] = useState(false);
+  const [customFileName, setCustomFileName] = useState('');
+  const [memberAgeMin, setMemberAgeMin] = useState('');
+  const [memberAgeMax, setMemberAgeMax] = useState('');
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -76,7 +88,63 @@ const AdminFamilies = memo(function AdminFamilies() {
     enabled: !!selectedFamily?.id,
     queryFn: async () => {
       const response = await apiClient.get(`/api/admin/families/${selectedFamily.id}`);
-      return response.data;
+      const data = response.data;
+
+      // Transform spouse data based on head's gender to avoid field name conflicts
+      const headGender = data.userGender || 'male';
+
+      // Store gender-appropriate spouse labels without overwriting head of household fields
+      if (data.spouse) {
+        // Add transformed spouse fields with different names to avoid conflicts
+        if (headGender === 'female') {
+          // When head is female, the spouse object should have 'husband' prefixed fields
+          data.spouseAsHusbandName = data.spouse.husbandName || data.spouse.wifeName;
+          data.spouseAsHusbandID = data.spouse.husbandID || data.spouse.wifeID;
+          data.spouseAsHusbandBirthDate = data.spouse.husbandBirthDate || data.spouse.wifeBirthDate;
+          data.spouseAsHusbandJob = data.spouse.husbandJob || data.spouse.wifeJob;
+          data.spouseAsHusbandPregnant = data.spouse.husbandPregnant || data.spouse.wifePregnant; // This should typically be false for husbands
+          data.spouseAsHusbandHasChronicIllness = data.spouse.husbandHasChronicIllness || data.spouse.wifeHasChronicIllness;
+          data.spouseAsHusbandChronicIllnessType = data.spouse.husbandChronicIllnessType || data.spouse.wifeChronicIllnessType;
+          data.spouseAsHusbandHasDisability = data.spouse.husbandHasDisability || data.spouse.wifeHasDisability;
+          data.spouseAsHusbandDisabilityType = data.spouse.husbandDisabilityType || data.spouse.wifeDisabilityType;
+        } else {
+          // When head is male, the spouse object should have 'wife' prefixed fields
+          data.spouseAsWifeName = data.spouse.wifeName;
+          data.spouseAsWifeID = data.spouse.wifeID;
+          data.spouseAsWifeBirthDate = data.spouse.wifeBirthDate;
+          data.spouseAsWifeJob = data.spouse.wifeJob;
+          data.spouseAsWifePregnant = data.spouse.wifePregnant;
+          data.spouseAsWifeHasChronicIllness = data.spouse.wifeHasChronicIllness;
+          data.spouseAsWifeChronicIllnessType = data.spouse.wifeChronicIllnessType;
+          data.spouseAsWifeHasDisability = data.spouse.wifeHasDisability;
+          data.spouseAsWifeDisabilityType = data.spouse.wifeDisabilityType;
+        }
+      } else if (data.wifeName) {
+        // Fallback: if no spouse object but raw spouse fields exist
+        if (headGender === 'female') {
+          data.spouseAsHusbandName = data.wifeName;
+          data.spouseAsHusbandID = data.wifeID;
+          data.spouseAsHusbandBirthDate = data.wifeBirthDate;
+          data.spouseAsHusbandJob = data.wifeJob;
+          data.spouseAsHusbandPregnant = data.wifePregnant; // This should typically be false for husbands
+          data.spouseAsHusbandHasChronicIllness = data.wifeHasChronicIllness;
+          data.spouseAsHusbandChronicIllnessType = data.wifeChronicIllnessType;
+          data.spouseAsHusbandHasDisability = data.wifeHasDisability;
+          data.spouseAsHusbandDisabilityType = data.wifeDisabilityType;
+        } else {
+          data.spouseAsWifeName = data.wifeName;
+          data.spouseAsWifeID = data.wifeID;
+          data.spouseAsWifeBirthDate = data.wifeBirthDate;
+          data.spouseAsWifeJob = data.wifeJob;
+          data.spouseAsWifePregnant = data.wifePregnant;
+          data.spouseAsWifeHasChronicIllness = data.wifeHasChronicIllness;
+          data.spouseAsWifeChronicIllnessType = data.wifeChronicIllnessType;
+          data.spouseAsWifeHasDisability = data.wifeHasDisability;
+          data.spouseAsWifeDisabilityType = data.wifeDisabilityType;
+        }
+      }
+
+      return data;
     }
   });
 
@@ -96,7 +164,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   });
 
   // 🚀 PERFORMANCE: Memoize unique branches extraction
-  const branchOptions = useMemo(() => 
+  const branchOptions = useMemo(() =>
     Array.from(new Set((families || []).map((f: any) => f.branch).filter(Boolean))),
     [families]
   );
@@ -104,27 +172,133 @@ const AdminFamilies = memo(function AdminFamilies() {
   // 🚀 PERFORMANCE: Memoize expensive filtering logic
   const filteredFamilies = useMemo(() => {
     if (!Array.isArray(families)) return [];
-    
+
     return families.filter((family: any) => {
       // Cache toLowerCase to avoid repeated calls
       const lowerSearchTerm = searchTerm.toLowerCase();
       const lowerHusbandName = family.husbandName.toLowerCase();
       const branchInArabic = getBranchInArabic(family.branch);
       const lowerBranchArabic = branchInArabic?.toLowerCase() || '';
-      
+
       const matchesSearch =
         lowerHusbandName.includes(lowerSearchTerm) ||
         family.husbandID.includes(searchTerm) ||
         lowerBranchArabic.includes(lowerSearchTerm);
-        
-      const matchesBranch = branchFilter === 'all' || branchInArabic === branchFilter;
+
+      const matchesBranch = branchFilter === 'all' || family.branch === branchFilter;
       const matchesDisplaced = displacedFilter === 'all' || (displacedFilter === 'yes' ? family.isDisplaced : !family.isDisplaced);
-      const matchesDamaged = damagedFilter === 'all' || (damagedFilter === 'yes' ? family.warDamage2024 : !family.warDamage2024);
+      const matchesDamaged = damagedFilter === 'all' || (damagedFilter === 'yes' ? family.warDamage2023 : !family.warDamage2023);
       const matchesAbroad = abroadFilter === 'all' || (abroadFilter === 'yes' ? family.isAbroad : !family.isAbroad);
-      
-      return matchesSearch && matchesBranch && matchesDisplaced && matchesDamaged && matchesAbroad;
+
+      // Social status filter
+      const matchesSocialStatus = socialStatusFilter === 'all' || family.socialStatus === socialStatusFilter;
+
+      // Members count filter
+      const matchesMembers = membersFilter === 'all' ||
+                            (membersFilter === 'small' && family.totalMembers <= 3) ||
+                            (membersFilter === 'medium' && family.totalMembers > 3 && family.totalMembers <= 6) ||
+                            (membersFilter === 'large' && family.totalMembers > 6) ||
+                            (membersFilter === 'custom' &&
+                             (membersMinCount === '' || (family.totalMembers !== null && family.totalMembers !== undefined && family.totalMembers >= (parseInt(membersMinCount) || 0))) &&
+                             (membersMaxCount === '' || (family.totalMembers !== null && family.totalMembers !== undefined && family.totalMembers <= (parseInt(membersMaxCount) || Infinity))));
+
+      // Pregnant filter
+      const matchesPregnant = pregnantFilter === 'all' ||
+                             (pregnantFilter === 'yes' ? family.wifePregnant : !family.wifePregnant);
+
+      // Children filter
+      // Calculate children count (under 2 years old)
+      const children = family.members?.filter((member: any) => {
+        if (!member.birthDate) return false;
+        const today = new Date();
+        const birth = new Date(member.birthDate);
+        let age = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+        return age < 2;
+      }) || [];
+
+      const matchesChildren = childrenFilter === 'all' ||
+                             (childrenFilter === 'yes' ? children.length > 0 : children.length === 0) ||
+                             (childrenFilter === 'many' && children.length >= 3) ||
+                             (childrenFilter === 'few' && children.length > 0 && children.length < 3) ||
+                             (childrenFilter === 'custom' &&
+                              (childrenMinCount === '' || children.length >= parseInt(childrenMinCount)) &&
+                              (childrenMaxCount === '' || children.length <= parseInt(childrenMaxCount)));
+
+      // Age filter for members and orphans
+      const hasMatchingMemberAge = (memberAgeMin === '' && memberAgeMax === '') ||
+                                   (Array.isArray(family.members) && family.members.some((member: any) => {
+                                     if (!member.birthDate) return false;
+                                     const today = new Date();
+                                     const birth = new Date(member.birthDate);
+
+                                     // Skip if birth date is in the future (invalid data)
+                                     if (birth > today) return false;
+
+                                     let age = today.getFullYear() - birth.getFullYear();
+                                     const m = today.getMonth() - birth.getMonth();
+                                     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+
+                                     const minAge = parseInt(memberAgeMin) || 0;
+                                     const maxAge = parseInt(memberAgeMax) || Infinity;
+
+                                     // If only min age is provided
+                                     if (memberAgeMin !== '' && memberAgeMax === '') {
+                                       return age >= minAge;
+                                     }
+                                     // If only max age is provided
+                                     if (memberAgeMin === '' && memberAgeMax !== '') {
+                                       return age <= maxAge;
+                                     }
+                                     // If both min and max are provided
+                                     if (memberAgeMin !== '' && memberAgeMax !== '') {
+                                       return age >= minAge && age <= maxAge;
+                                     }
+                                     // If no age filter is applied, return true
+                                     return true;
+                                   }));
+
+      // Age filter for orphans (if available)
+      const hasMatchingOrphanAge = (memberAgeMin === '' && memberAgeMax === '') ||
+                                   (!Array.isArray(family.orphans) ? false : family.orphans.some((orphan: any) => {
+                                     if (!orphan.orphanBirthDate) return false;
+                                     const today = new Date();
+                                     const birth = new Date(orphan.orphanBirthDate);
+
+                                     // Skip if birth date is in the future (invalid data)
+                                     if (birth > today) return false;
+
+                                     let age = today.getFullYear() - birth.getFullYear();
+                                     const m = today.getMonth() - birth.getMonth();
+                                     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+
+                                     const minAge = parseInt(memberAgeMin) || 0;
+                                     const maxAge = parseInt(memberAgeMax) || Infinity;
+
+                                     // If only min age is provided
+                                     if (memberAgeMin !== '' && memberAgeMax === '') {
+                                       return age >= minAge;
+                                     }
+                                     // If only max age is provided
+                                     if (memberAgeMin === '' && memberAgeMax !== '') {
+                                       return age <= maxAge;
+                                     }
+                                     // If both min and max are provided
+                                     if (memberAgeMin !== '' && memberAgeMax !== '') {
+                                       return age >= minAge && age <= maxAge;
+                                     }
+                                     // If no age filter is applied, return true
+                                     return true;
+                                   }));
+
+      const matchesMemberAge = hasMatchingMemberAge || hasMatchingOrphanAge;
+
+      return matchesSearch && matchesBranch && matchesDisplaced &&
+             matchesDamaged && matchesAbroad && matchesSocialStatus && matchesMembers &&
+             matchesPregnant && matchesChildren && matchesMemberAge;
     });
-  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter]);
+  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax]);
 
   // 🚀 PERFORMANCE: Memoize expensive max counts calculation
   const { maxSons, maxChildren, maxWives } = useMemo(() => {
@@ -141,7 +315,7 @@ const AdminFamilies = memo(function AdminFamilies() {
       const members = Array.isArray(family.members) ? family.members : [];
       const sons = members.filter((m: any) => !isChild(m.birthDate)).length;
       const children = members.filter((m: any) => isChild(m.birthDate)).length;
-      const wives = Array.isArray(family.wives) ? family.wives.length : (family.wifeName ? 1 : 0);
+      const wives = family.wife ? 1 : (family.wifeName ? 1 : 0);
       
       if (sons > maxS) maxS = sons;
       if (children > maxC) maxC = children;
@@ -153,31 +327,42 @@ const AdminFamilies = memo(function AdminFamilies() {
 
   // 🚀 PERFORMANCE: Memoize expensive Excel columns generation
   const excelColumns = useMemo(() => [
-    { key: 'husbandName', label: 'اسم الزوج رباعي', checked: true },
-    { key: 'husbandID', label: 'رقم هوية الزوج', checked: true },
-    { key: 'husbandJob', label: 'عمل الزوج', checked: true },
-    { key: 'husbandBirthDate', label: 'تاريخ ميلاد الزوج', checked: true },
-    { key: 'husbandAge', label: 'عمر الزوج', checked: true },
-    // Wives columns (dynamic, only if maxWives > 0)
-    ...(maxWives > 0 ? Array.from({length: maxWives}).flatMap((_, i) => [
-      { key: `wifeName${i+1}`, label: `اسم الزوجة${maxWives > 1 ? ` ${i+1}` : ''} رباعي`, checked: true },
-      { key: `wifeID${i+1}`, label: `رقم هوية الزوجة${maxWives > 1 ? ` ${i+1}` : ''}`, checked: true },
-      { key: `wifeJob${i+1}`, label: `عمل الزوجة${maxWives > 1 ? ` ${i+1}` : ''}`, checked: true },
-      { key: `wifeBirthDate${i+1}`, label: `تاريخ ميلاد الزوجة${maxWives > 1 ? ` ${i+1}` : ''}`, checked: true },
-      { key: `wifeAge${i+1}`, label: `عمر الزوجة${maxWives > 1 ? ` ${i+1}` : ''}`, checked: true },
-      { key: `wifePregnant${i+1}`, label: `هل الزوجة${maxWives > 1 ? ` ${i+1}` : ''} حامل`, checked: true },
-    ]) : []),
+    { key: 'husbandName', label: 'اسم رب/ربة الأسرة رباعي', checked: true },
+    { key: 'husbandID', label: 'رقم هوية رب/ربة الأسرة', checked: true },
+    { key: 'husbandJob', label: 'عمل رب/ربة الأسرة', checked: true },
+    { key: 'husbandBirthDate', label: 'تاريخ ميلاد رب/ربة الأسرة', checked: true },
+    { key: 'husbandAge', label: 'عمر رب/ربة الأسرة', checked: true },
+    { key: 'hasChronicIllness', label: 'هل يعاني رب الأسرة من مرض مزمن', checked: true },
+    { key: 'chronicIllnessType', label: 'نوع مرض رب الأسرة المزمن', checked: true },
+    { key: 'hasDisability', label: 'هل يعاني رب الأسرة من إعاقة', checked: true },
+    { key: 'disabilityType', label: 'نوع إعاقة رب الأسرة', checked: true },
+    // Wife columns (individual wife fields)
+    ...(maxWives > 0 ? [
+      { key: 'wifeName', label: 'اسم الزوج/ة رباعي', checked: true },
+      { key: 'wifeID', label: 'رقم هوية الزوج/ة', checked: true },
+      { key: 'wifeJob', label: 'عمل الزوج/ة', checked: true },
+      { key: 'wifeBirthDate', label: 'تاريخ ميلاد الزوج/ة', checked: true },
+      { key: 'wifeAge', label: 'عمر الزوج/ة', checked: true },
+      { key: 'wifePregnant', label: 'هل الزوج/ة حامل', checked: true },
+      { key: 'wifeHasChronicIllness', label: 'هل يعاني/تعاني الزوج/ة من مرض مزمن', checked: true },
+      { key: 'wifeChronicIllnessType', label: 'نوع مرض الزوج/ة المزمن', checked: true },
+      { key: 'wifeHasDisability', label: 'هل يعاني/تعاني الزوج/ة من إعاقة', checked: true },
+      { key: 'wifeDisabilityType', label: 'نوع إعاقة الزوج/ة', checked: true },
+    ] : []),
     { key: 'primaryPhone', label: 'رقم الجوال للتواصل', checked: true },
     { key: 'secondaryPhone', label: 'رقم الجوال البديل', checked: true },
     { key: 'originalResidence', label: 'السكن الأصلي', checked: true },
     { key: 'currentHousing', label: 'حالة السكن الحالي', checked: true },
     { key: 'displacedLocation', label: 'اقرب معلم لك في حال كنت نازح حاليا', checked: true },
-    { key: 'warDamageDescription', label: 'الاضرار الناجمة عن حرب 2024', checked: true },
+    { key: 'warDamageDescription', label: 'الاضرار الناجمة عن حرب 2023', checked: true },
     { key: 'branch', label: 'الفرع', checked: true },
     { key: 'totalMembers', label: 'عدد افراد الأسرة مع الأب والأم', checked: true },
     { key: 'hasDisabledMembers', label: 'هل يوجد افراد ذوي اعاقة في العائلة', checked: true },
     { key: 'disabilityTypes', label: 'اذا كان يوجد أشخاص ذوي اعاقة اذكر نوع الإعاقة', checked: true },
-    { key: 'hasChildrenUnderTwo', label: 'هل لديك ابناء اقل من سنتين', checked: true },
+    { key: 'hasChildrenUnderTwo', label: 'عدد الابناء اقل من سنتين', checked: true },
+    { key: 'hasChildren2To5', label: 'عدد الابناء من 2-5 سنوات', checked: true },
+    { key: 'hasChildren6To10', label: 'عدد الابناء من 6-10 سنوات', checked: true },
+    { key: 'hasChildren11To15', label: 'عدد الابناء من 11-15 سنوات', checked: true },
     // Sons columns (dynamic, only if maxSons > 0)
     ...(maxSons > 0 ? Array.from({length: maxSons}).flatMap((_, i) => [
       { key: `sonName${i+1}`, label: `اسم الابن ${i+1}`, checked: true },
@@ -217,13 +402,12 @@ const AdminFamilies = memo(function AdminFamilies() {
   };
 
   // Group toggles
-  const handleGroupToggle = (group: "sons" | "children" | "wives") => {
+  const handleGroupToggle = (group: "sons" | "children") => {
     setCheckedColumns(prev => {
       const next = { ...prev };
       const groupCols = excelColumns.filter(col =>
-        group === "sons" ? col.key.startsWith("son") : 
-        group === "children" ? col.key.startsWith("child") : 
-        col.key.startsWith("wife")
+        group === "sons" ? col.key.startsWith("son") :
+        col.key.startsWith("child")
       );
       const allChecked = groupCols.every(col => prev[col.key]);
       for (const col of groupCols) {
@@ -245,6 +429,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const sonCols = excelColumns.filter(col => col.key.startsWith('son'));
   const childCols = excelColumns.filter(col => col.key.startsWith('child'));
   const wifeCols = excelColumns.filter(col => col.key.startsWith('wife'));
+  const husbandCols = excelColumns.filter(col => col.key.startsWith('husband'));
   const isSonsChecked = sonCols.length > 0 && sonCols.every(col => checkedColumns[col.key]);
   const isChildrenChecked = childCols.length > 0 && childCols.every(col => checkedColumns[col.key]);
   const isWivesChecked = wifeCols.length > 0 && wifeCols.every(col => checkedColumns[col.key]);
@@ -259,13 +444,13 @@ const AdminFamilies = memo(function AdminFamilies() {
       const sheet = workbook.addWorksheet('قائمة الأسر', {views: [{rightToLeft: true}] });
       // Styles
       const titleStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4CAF50' } },
-        font: { color: { argb: 'FFFFFFFF' }, bold: true, size: 16 },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        font: { color: { argb: 'FF000000' }, bold: true, size: 16 }, // Black text
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
       const headerStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4CAF50' } },
-        font: { color: { argb: 'FFFFFFFF' }, bold: true, size: 12 },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        font: { color: { argb: 'FF000000' }, bold: true, size: 12 }, // Black text
         alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
         border: { top: { style: 'thin' as ExcelJS.BorderStyle }, bottom: { style: 'thin' as ExcelJS.BorderStyle }, left: { style: 'thin' as ExcelJS.BorderStyle }, right: { style: 'thin' as ExcelJS.BorderStyle } }
       };
@@ -311,50 +496,54 @@ const AdminFamilies = memo(function AdminFamilies() {
         // Use isChild for children, !isChild for sons (age-based only)
         const children: any[] = Array.isArray(members) ? members.filter((member: any) => isChild(member.birthDate)) : [];
         const sons: any[] = Array.isArray(members) ? members.filter((member: any) => !isChild(member.birthDate)) : [];
-        const wives: any[] = Array.isArray(family.wives) ? family.wives : (family.wifeName ? [{
+        const wives: any[] = family.wife ? [family.wife] : (family.wifeName ? [{
           wifeName: family.wifeName,
           wifeID: family.wifeID,
           wifeJob: family.wifeJob,
           wifeBirthDate: family.wifeBirthDate,
-          wifePregnant: family.wifePregnant
+          wifePregnant: family.wifePregnant,
+          wifeHasChronicIllness: family.wifeHasChronicIllness,
+          wifeChronicIllnessType: family.wifeChronicIllnessType,
+          wifeHasDisability: family.wifeHasDisability,
+          wifeDisabilityType: family.wifeDisabilityType
         }] : []);
         const sonsData: (any|null)[] = Array.isArray(sons) ? Array.from({length: maxSons}).map((_, i) => sons[i] || null) : [];
         const childrenData: (any|null)[] = Array.isArray(children) ? Array.from({length: maxChildren}).map((_, i) => children[i] || null) : [];
-        const wivesData: (any|null)[] = Array.isArray(wives) ? Array.from({length: maxWives}).map((_, i) => wives[i] || null) : [];
+        const wivesData: (any|null)[] = wives.length > 0 ? [wives[0]] : [null];
         const disabledMembers: any[] = Array.isArray(members) ? members.filter((m: any) => m.isDisabled) : [];
         const disabilityTypes = Array.isArray(disabledMembers) ? disabledMembers.map((m: any) => m.disabilityType || '').filter(Boolean).join(', ') : '';
         const rowData = Array.isArray(selectedCols) ? selectedCols.map(col => {
-          // Dynamic wives export
-          // Wives: wifeNameX, wifeIDX, wifeJobX, wifeBirthDateX, wifeAgeX, wifePregnantX
-          const wifeNameMatch = typeof col.key === 'string' ? col.key.match(/^wifeName(\d+)$/) : null;
-          const wifeIDMatch = typeof col.key === 'string' ? col.key.match(/^wifeID(\d+)$/) : null;
-          const wifeJobMatch = typeof col.key === 'string' ? col.key.match(/^wifeJob(\d+)$/) : null;
-          const wifeBirthDateMatch = typeof col.key === 'string' ? col.key.match(/^wifeBirthDate(\d+)$/) : null;
-          const wifeAgeMatch = typeof col.key === 'string' ? col.key.match(/^wifeAge(\d+)$/) : null;
-          const wifePregnantMatch = typeof col.key === 'string' ? col.key.match(/^wifePregnant(\d+)$/) : null;
-          if (wifeNameMatch) {
-            const idx = parseInt(wifeNameMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] ? wives[idx].wifeName || '' : '';
+          // Wife data export (single wife)
+          // Wives: wifeName, wifeID, wifeJob, wifeBirthDate, wifeAge, wifePregnant
+          if (col.key === 'wifeName') {
+            return wives.length > 0 ? wives[0].wifeName || '' : '';
           }
-          if (wifeIDMatch) {
-            const idx = parseInt(wifeIDMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] ? wives[idx].wifeID || '' : '';
+          if (col.key === 'wifeID') {
+            return wives.length > 0 ? wives[0].wifeID || '' : '';
           }
-          if (wifeJobMatch) {
-            const idx = parseInt(wifeJobMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] ? wives[idx].wifeJob || '' : '';
+          if (col.key === 'wifeJob') {
+            return wives.length > 0 ? wives[0].wifeJob || '' : '';
           }
-          if (wifeBirthDateMatch) {
-            const idx = parseInt(wifeBirthDateMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] ? wives[idx].wifeBirthDate || '' : '';
+          if (col.key === 'wifeBirthDate') {
+            return wives.length > 0 ? wives[0].wifeBirthDate || '' : '';
           }
-          if (wifeAgeMatch) {
-            const idx = parseInt(wifeAgeMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] && wives[idx].wifeBirthDate ? getAge(wives[idx].wifeBirthDate) : '';
+          if (col.key === 'wifeAge') {
+            return wives.length > 0 && wives[0].wifeBirthDate ? getAge(wives[0].wifeBirthDate) : '';
           }
-          if (wifePregnantMatch) {
-            const idx = parseInt(wifePregnantMatch[1], 10) - 1;
-            return Array.isArray(wives) && wives[idx] ? (wives[idx].wifePregnant ? 'نعم' : 'لا') : '';
+          if (col.key === 'wifePregnant') {
+            return wives.length > 0 ? (wives[0].wifePregnant ? 'نعم' : 'لا') : '';
+          }
+          if (col.key === 'wifeHasChronicIllness') {
+            return wives.length > 0 ? (wives[0].wifeHasChronicIllness ? 'نعم' : 'لا') : '';
+          }
+          if (col.key === 'wifeChronicIllnessType') {
+            return wives.length > 0 ? (wives[0].wifeChronicIllnessType || '') : '';
+          }
+          if (col.key === 'wifeHasDisability') {
+            return wives.length > 0 ? (wives[0].wifeHasDisability ? 'نعم' : 'لا') : '';
+          }
+          if (col.key === 'wifeDisabilityType') {
+            return wives.length > 0 ? (wives[0].wifeDisabilityType || '') : '';
           }
           // Dynamic sons/children export
           // Sons: sonNameX, sonIDX, sonBirthDateX
@@ -363,7 +552,18 @@ const AdminFamilies = memo(function AdminFamilies() {
           const sonBirthDateMatch = typeof col.key === 'string' ? col.key.match(/^sonBirthDate(\d+)$/) : null;
           if (sonNameMatch) {
             const idx = parseInt(sonNameMatch[1], 10) - 1;
-            return Array.isArray(sons) && sons[idx] ? sons[idx].fullName || '' : '';
+            if (Array.isArray(sons) && sons[idx]) {
+              const son = sons[idx];
+              let name = son.fullName || '';
+              if (son.isDisabled) {
+                name += ` (إعاقة: ${son.disabilityType || 'محدد'})`;
+              }
+              if (son.hasChronicIllness) {
+                name += ` (مرض مزمن: ${son.chronicIllnessType || 'محدد'})`;
+              }
+              return name;
+            }
+            return '';
           }
           if (sonIDMatch) {
             const idx = parseInt(sonIDMatch[1], 10) - 1;
@@ -379,7 +579,18 @@ const AdminFamilies = memo(function AdminFamilies() {
           const childBirthDateMatch = typeof col.key === 'string' ? col.key.match(/^childBirthDate(\d+)$/) : null;
           if (childNameMatch) {
             const idx = parseInt(childNameMatch[1], 10) - 1;
-            return Array.isArray(children) && children[idx] ? children[idx].fullName || '' : '';
+            if (Array.isArray(children) && children[idx]) {
+              const child = children[idx];
+              let name = child.fullName || '';
+              if (child.isDisabled) {
+                name += ` (إعاقة: ${child.disabilityType || 'محدد'})`;
+              }
+              if (child.hasChronicIllness) {
+                name += ` (مرض مزمن: ${child.chronicIllnessType || 'محدد'})`;
+              }
+              return name;
+            }
+            return '';
           }
           if (childIDMatch) {
             const idx = parseInt(childIDMatch[1], 10) - 1;
@@ -396,6 +607,10 @@ const AdminFamilies = memo(function AdminFamilies() {
             case 'husbandJob': return family.husbandJob || '';
             case 'husbandBirthDate': return family.husbandBirthDate || '';
             case 'husbandAge': return family.husbandBirthDate ? getAge(family.husbandBirthDate) : '';
+            case 'hasChronicIllness': return family.hasChronicIllness ? 'نعم' : 'لا';
+            case 'chronicIllnessType': return family.chronicIllnessType || '';
+            case 'hasDisability': return family.hasDisability ? 'نعم' : 'لا';
+            case 'disabilityType': return family.disabilityType || '';
             case 'primaryPhone': return family.primaryPhone || '';
             case 'secondaryPhone': return family.secondaryPhone || '';
             case 'originalResidence': return family.originalResidence || '';
@@ -406,7 +621,35 @@ const AdminFamilies = memo(function AdminFamilies() {
             case 'totalMembers': return family.totalMembers || '';
             case 'hasDisabledMembers': return Array.isArray(disabledMembers) && disabledMembers.length > 0 ? 'نعم' : 'لا';
             case 'disabilityTypes': return disabilityTypes;
-            case 'hasChildrenUnderTwo': return Array.isArray(children) && children.length > 0 ? 'نعم' : 'لا';
+            case 'hasChildrenUnderTwo': return Array.isArray(children) ? children.filter((member: any) => {
+              if (!member.birthDate) return false;
+              const age = getAge(member.birthDate);
+              return age < 2;
+            }).length : 0;
+            case 'hasChildren2To5': {
+              const children2To5 = Array.isArray(members) ? members.filter((member: any) => {
+                if (!member.birthDate) return false;
+                const age = getAge(member.birthDate);
+                return age >= 2 && age <= 5;
+              }) : [];
+              return children2To5.length;
+            }
+            case 'hasChildren6To10': {
+              const children6To10 = Array.isArray(members) ? members.filter((member: any) => {
+                if (!member.birthDate) return false;
+                const age = getAge(member.birthDate);
+                return age >= 6 && age <= 10;
+              }) : [];
+              return children6To10.length;
+            }
+            case 'hasChildren11To15': {
+              const children11To15 = Array.isArray(members) ? members.filter((member: any) => {
+                if (!member.birthDate) return false;
+                const age = getAge(member.birthDate);
+                return age >= 11 && age <= 15;
+              }) : [];
+              return children11To15.length;
+            }
             case 'hasChildrenAboveTwo': return Array.isArray(sons) && sons.length > 0 ? 'نعم' : 'لا';
             case 'numMales': return family.numMales || '';
             case 'numFemales': return family.numFemales || '';
@@ -484,7 +727,13 @@ const AdminFamilies = memo(function AdminFamilies() {
         }
       });
       // Download
-      const fileName = `families_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      let fileName;
+      if (customFileName.trim()) {
+        // Use custom filename and ensure it has .xlsx extension
+        fileName = customFileName.trim().endsWith('.xlsx') ? customFileName.trim() : customFileName.trim() + '.xlsx';
+      } else {
+        fileName = `families_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      }
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
@@ -494,6 +743,8 @@ const AdminFamilies = memo(function AdminFamilies() {
       link.click();
       window.URL.revokeObjectURL(url);
       toast({ title: 'تم التصدير بنجاح', description: `تم حفظ ملف Excel باسم: ${fileName}`, variant: 'default' });
+      // Reset custom filename after successful export
+      setCustomFileName('');
     } catch (error) {
       toast({ title: 'خطأ في التصدير', description: 'حدث خطأ أثناء تصدير البيانات إلى Excel', variant: 'destructive' });
     }
@@ -518,7 +769,7 @@ const AdminFamilies = memo(function AdminFamilies() {
 
   const totalFamilies = families?.length || 0;
   const displacedFamilies = families?.filter((family: any) => family.isDisplaced) || [];
-  const damagedFamilies = families?.filter((family: any) => family.warDamage2024) || [];
+  const damagedFamilies = families?.filter((family: any) => family.warDamage2023) || [];
   const abroadFamilies = families?.filter((family: any) => family.isAbroad) || [];
 
   return (
@@ -609,7 +860,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                   </div>
                 </div>
                 {/* Filters */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="flex flex-col items-center">
                     <label className="mb-1 text-sm text-foreground text-center w-full">الفرع</label>
                     <Select value={branchFilter} onValueChange={setBranchFilter} dir="rtl">
@@ -618,9 +869,11 @@ const AdminFamilies = memo(function AdminFamilies() {
                       </SelectTrigger>
                       <SelectContent dir="rtl">
                         <SelectItem value="all">كل الفروع</SelectItem>
-                        {branchOptions.map((branch) => (
-                          <SelectItem key={branch} value={getBranchInArabic(branch)}>{getBranchInArabic(branch)}</SelectItem>
-                        ))}
+                        <SelectItem value="abushalbia">ابو شلبية (شلف - علاينة - عزايزة)</SelectItem>
+                        <SelectItem value="alnaqra">النقرة (الدوار)</SelectItem>
+                        <SelectItem value="abuawda">ابو عودة</SelectItem>
+                        <SelectItem value="abunasr">ابو نصر</SelectItem>
+                        <SelectItem value="abumatar">ابو مطر</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -662,6 +915,104 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <SelectItem value="no">غير مغترب</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">الحالة الاجتماعية</label>
+                    <Select value={socialStatusFilter} onValueChange={setSocialStatusFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الحالات</SelectItem>
+                        <SelectItem value="married">متزوج</SelectItem>
+                        <SelectItem value="polygamous">متعدد زوجات</SelectItem>
+                        <SelectItem value="widowed">ارملة</SelectItem>
+                        <SelectItem value="vulnerable_family">اسر هشة (ايتام)</SelectItem>
+                        <SelectItem value="abandoned">متروكة</SelectItem>
+                        <SelectItem value="divorced">مطلقة</SelectItem>
+                        <SelectItem value="single">عانس</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">عدد الأفراد</label>
+                    <Select value={membersFilter} onValueChange={setMembersFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الأحجام</SelectItem>
+                        <SelectItem value="small">صغيرة (1-3)</SelectItem>
+                        <SelectItem value="medium">متوسطة (4-6)</SelectItem>
+                        <SelectItem value="large">كبيرة (7+)</SelectItem>
+                        <SelectItem value="custom">مخصص</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {membersFilter === 'custom' && (
+                      <div className="mt-2 grid grid-cols-2 gap-2 w-full">
+                        <div>
+                          <label className="text-xs text-muted-foreground block text-center">الحد الأدنى</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={membersMinCount}
+                            onChange={(e) => setMembersMinCount(e.target.value)}
+                            placeholder="0"
+                            className="text-xs text-right"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block text-center">الحد الأقصى</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={membersMaxCount}
+                            onChange={(e) => setMembersMaxCount(e.target.value)}
+                            placeholder="10"
+                            className="text-xs text-right"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">أم حامل</label>
+                    <Select value={pregnantFilter} onValueChange={setPregnantFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الحالات</SelectItem>
+                        <SelectItem value="yes">نعم</SelectItem>
+                        <SelectItem value="no">لا</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">العمر</label>
+                    <p className="text-xs text-muted-foreground mb-1">الأبناء أو الأيتام</p>
+                    <div className="flex gap-2 w-full">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="150"
+                        value={memberAgeMin}
+                        onChange={(e) => setMemberAgeMin(e.target.value)}
+                        placeholder="من"
+                        className="text-xs text-right"
+                        dir="rtl"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="150"
+                        value={memberAgeMax}
+                        onChange={(e) => setMemberAgeMax(e.target.value)}
+                        placeholder="إلى"
+                        className="text-xs text-right"
+                        dir="rtl"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -715,7 +1066,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                               {family.isDisplaced && (
                                 <Badge variant="destructive" className="text-xs">نازح</Badge>
                               )}
-                              {family.warDamage2024 && (
+                              {family.warDamage2023 && (
                                 <Badge variant="outline" className="text-xs">متضرر</Badge>
                               )}
                               {family.isAbroad && (
@@ -847,7 +1198,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                     <div className="flex flex-wrap gap-4 items-center mb-2">
                       <Badge className="bg-blue-100 text-blue-800">رقم الأسرة: {familyDetails.id}</Badge>
                       {familyDetails.isDisplaced && <Badge variant="destructive">نازح</Badge>}
-                      {familyDetails.warDamage2024 && <Badge variant="outline">متضرر</Badge>}
+                      {familyDetails.warDamage2023 && <Badge variant="outline">متضرر</Badge>}
                       {familyDetails.isAbroad && <Badge className="bg-blue-100 text-blue-800">مغترب</Badge>}
                       {familyDetails.branch && <Badge className="bg-green-100 text-green-800">{getBranchInArabic(familyDetails.branch)}</Badge>}
                     </div>
@@ -884,45 +1235,32 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">رقم الهوية:</span> <span className="sm:mr-2">{familyDetails.husbandID}</span></div>
                         <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">تاريخ الميلاد:</span> <span className="sm:mr-2">{familyDetails.husbandBirthDate || 'غير محدد'}{familyDetails.husbandBirthDate && <> (<span className="text-green-700">{calculateDetailedAge(familyDetails.husbandBirthDate)}</span>)</>}</span></div>
                         <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المهنة:</span> <span className="sm:mr-2">{familyDetails.husbandJob || 'غير محدد'}</span></div>
+                        <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المرض المزمن:</span> <span className="sm:mr-2">{familyDetails.hasChronicIllness ? (familyDetails.chronicIllnessType || 'نعم') : 'لا'}</span></div>
+                        <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">الإعاقة:</span> <span className="sm:mr-2">{familyDetails.hasDisability ? (familyDetails.disabilityType || 'نعم') : 'لا'}</span></div>
                         <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">الجوال:</span> <span className="sm:mr-2">{familyDetails.primaryPhone || 'غير محدد'}</span></div>
                         <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">الجوال الإضافي:</span> <span className="sm:mr-2">{familyDetails.secondaryPhone || 'غير محدد'}</span></div>
                           </div>
                     </div>
                     {/* Wives Information */}
-                    {((familyDetails.wives && familyDetails.wives.length > 0) || familyDetails.wifeName) && (
+                    {(familyDetails.spouse || familyDetails.wifeName) && (
                       <div className="bg-card rounded-lg p-3 md:p-4 border">
                         <h4 className="font-semibold text-card-foreground mb-3">
-                          {familyDetails.socialStatus === "polygamous" || (familyDetails.wives && familyDetails.wives.length > 1) ? "الزوجات" : "الزوجة"}
+                          {familyDetails.userGender === 'female' ? 'الزوج' : 'الزوجة'}
                         </h4>
-                        <div className="space-y-4">
-                          {familyDetails.wives && familyDetails.wives.length > 0 ? (
-                            familyDetails.wives.map((wife: any, index: number) => (
-                              <div key={wife.id || index} className="border-l-4 border-secondary pl-3">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  {familyDetails.wives.length > 1 && <Badge variant="secondary">الزوجة {index + 1}</Badge>}
-                                  <Badge variant="secondary">{wife.wifeName}</Badge>
-                                </div>
-                                <div className="space-y-1 text-sm">
-                                  <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">رقم الهوية:</span> <span className="sm:mr-2">{wife.wifeID || 'غير محدد'}</span></div>
-                                  <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">تاريخ الميلاد:</span> <span className="sm:mr-2">{wife.wifeBirthDate || 'غير محدد'}{wife.wifeBirthDate && <> (<span className="text-primary">{calculateDetailedAge(wife.wifeBirthDate)}</span>)</>}</span></div>
-                                  <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المهنة:</span> <span className="sm:mr-2">{wife.wifeJob || 'غير محدد'}</span></div>
-                                  <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">حامل:</span> <span className="sm:mr-2">{wife.wifePregnant ? <Badge variant="outline" className="border-warning text-warning">نعم</Badge> : 'لا'}</span></div>
-                                </div>
-                              </div>
-                            ))
-                          ) : familyDetails.wifeName ? (
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <Badge variant="secondary">{familyDetails.wifeName}</Badge>
-                              </div>
-                              <div className="space-y-1 text-sm">
-                                <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">رقم الهوية:</span> <span className="sm:mr-2">{familyDetails.wifeID || 'غير محدد'}</span></div>
-                                <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">تاريخ الميلاد:</span> <span className="sm:mr-2">{familyDetails.wifeBirthDate || 'غير محدد'}{familyDetails.wifeBirthDate && <> (<span className="text-primary">{calculateDetailedAge(familyDetails.wifeBirthDate)}</span>)</>}</span></div>
-                                <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المهنة:</span> <span className="sm:mr-2">{familyDetails.wifeJob || 'غير محدد'}</span></div>
-                                <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">حامل:</span> <span className="sm:mr-2">{familyDetails.wifePregnant ? <Badge variant="outline" className="border-warning text-warning">نعم</Badge> : 'لا'}</span></div>
-                              </div>
-                            </div>
-                          ) : null}
+                        <div className="space-y-1 text-sm">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Badge variant="secondary">{familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandName : familyDetails.spouseAsWifeName}</Badge>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">رقم الهوية:</span> <span className="sm:mr-2">{familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandID : familyDetails.spouseAsWifeID || 'غير محدد'}</span></div>
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">تاريخ الميلاد:</span> <span className="sm:mr-2">{(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandBirthDate : familyDetails.spouseAsWifeBirthDate) || 'غير محدد'}{(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandBirthDate : familyDetails.spouseAsWifeBirthDate) && <> (<span className="text-primary">{calculateDetailedAge(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandBirthDate : familyDetails.spouseAsWifeBirthDate)}</span>)</>}</span></div>
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المهنة:</span> <span className="sm:mr-2">{familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandJob : familyDetails.spouseAsWifeJob || 'غير محدد'}</span></div>
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">المرض المزمن:</span> <span className="sm:mr-2">{(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandHasChronicIllness : familyDetails.spouseAsWifeHasChronicIllness) ? ((familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandChronicIllnessType : familyDetails.spouseAsWifeChronicIllnessType) || 'نعم') : 'لا'}</span></div>
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">الإعاقة:</span> <span className="sm:mr-2">{(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandHasDisability : familyDetails.spouseAsWifeHasDisability) ? ((familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandDisabilityType : familyDetails.spouseAsWifeDisabilityType) || 'نعم') : 'لا'}</span></div>
+                            {familyDetails.userGender !== 'female' && ( // Only show pregnancy field when head is male (i.e., spouse could be pregnant)
+                            <div className="flex flex-col sm:flex-row"><span className="font-medium text-muted-foreground">حامل:</span> <span className="sm:mr-2">{(familyDetails.userGender === 'female' ? familyDetails.spouseAsHusbandPregnant : familyDetails.spouseAsWifePregnant) ? <Badge variant="outline" className="border-warning text-warning">نعم</Badge> : 'لا'}</span></div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -940,6 +1278,8 @@ const AdminFamilies = memo(function AdminFamilies() {
                                 <div>الجنس: {getGenderInArabic(member.gender)}</div>
                                 <div>القرابة: {getRelationshipInArabic(member.relationship)}</div>
                                 <div>تاريخ الميلاد: {member.birthDate || 'غير محدد'}{member.birthDate && <> (<span className="text-primary">{calculateDetailedAge(member.birthDate)}</span>)</>}</div>
+                                <div>الإعاقة: {member.isDisabled ? (member.disabilityType || 'نعم') : 'لا'}</div>
+                                <div>المرض المزمن: {member.hasChronicIllness ? (member.chronicIllnessType || 'نعم') : 'لا'}</div>
                               </div>
                             </div>
                           ))}
@@ -951,6 +1291,8 @@ const AdminFamilies = memo(function AdminFamilies() {
                               <th className="px-3 py-2 text-right">الجنس</th>
                               <th className="px-3 py-2 text-right">القرابة</th>
                               <th className="px-3 py-2 text-right">تاريخ الميلاد</th>
+                              <th className="px-3 py-2 text-right">إعاقة</th>
+                              <th className="px-3 py-2 text-right">مرض مزمن</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -960,6 +1302,8 @@ const AdminFamilies = memo(function AdminFamilies() {
                                 <td className="px-3 py-2">{getGenderInArabic(member.gender)}</td>
                                 <td className="px-3 py-2">{getRelationshipInArabic(member.relationship)}</td>
                                 <td className="px-3 py-2">{member.birthDate || 'غير محدد'}{member.birthDate && <> (<span className="text-primary">{calculateDetailedAge(member.birthDate)}</span>)</>}</td>
+                                <td className="px-3 py-2">{member.isDisabled ? (member.disabilityType || 'نعم') : 'لا'}</td>
+                                <td className="px-3 py-2">{member.hasChronicIllness ? (member.chronicIllnessType || 'نعم') : 'لا'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1003,77 +1347,136 @@ const AdminFamilies = memo(function AdminFamilies() {
             </DialogContent>
           </Dialog>
           
-          {/* Export Controls Above Table */}
-          {/* Replace the export controls area with a Card-based, modern, visually appealing selection UI */}
-          <Card className="mb-6 max-w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-700">
-                <FileSpreadsheet className="h-5 w-5" />
-                تصدير الأسر إلى Excel
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-2">حدد الأعمدة التي ترغب في تصديرها، ثم اضغط على زر التصدير.</p>
-            </CardHeader>
-            <CardContent className="max-w-full overflow-hidden">
-              <div className="flex gap-2 mb-2 justify-end flex-wrap">
-                <Button type="button" variant="outline" onClick={handleSelectAll}>
-                  تحديد الكل
-                </Button>
-                <Button type="button" variant="outline" onClick={handleDeselectAll}>
-                  إلغاء تحديد الكل
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" dir="rtl">
-                {/* Sons group checkbox */}
-                {sonCols.length > 0 && (
-                  <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${isSonsChecked ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
-                    style={{ order: 1 }}>
-                    <input type="checkbox" checked={isSonsChecked} onChange={() => handleGroupToggle('sons')} className="accent-green-600 w-4 h-4" />
-                    <span className="text-md">الأبناء</span>
-                  </label>
-                )}
-                {/* Children group checkbox */}
-                {childCols.length > 0 && (
-                  <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${isChildrenChecked ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
-                    style={{ order: 2 }}>
-                    <input type="checkbox" checked={isChildrenChecked} onChange={() => handleGroupToggle('children')} className="accent-green-600 w-4 h-4" />
-                    <span className="text-md">الأطفال</span>
-                  </label>
-                )}
-                {/* Wives group checkbox */}
-                {wifeCols.length > 0 && (
-                  <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${isWivesChecked ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
-                    style={{ order: 3 }}>
-                    <input type="checkbox" checked={isWivesChecked} onChange={() => handleGroupToggle('wives')} className="accent-green-600 w-4 h-4" />
-                    <span className="text-md">{maxWives > 1 ? 'الزوجات' : 'الزوجة'}</span>
-                  </label>
-                )}
-                {/* Render the rest of the columns except sons/children/wives */}
-                {excelColumns.filter(col => !col.key.startsWith('son') && !col.key.startsWith('child') && !col.key.startsWith('wife')).map((col, idx) => (
-                  <label
-                    key={col.key}
-                    className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ?? true ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
-                    style={{ order: idx + 4 }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checkedColumns[col.key] ?? true}
-                      onChange={() => handleExcelColumnChange(col.key)}
-                      className="accent-green-600 w-4 h-4"
-                    />
-                    <span className="text-md">{col.label}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={handleExportExcel} className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 px-8 py-2 text-lg rounded-lg shadow">
-                  <FileSpreadsheet className="h-5 w-5 ml-2" />
-                  تصدير إلى Excel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Excel Export Button */}
+          <div className="flex justify-end mb-6">
+            <Button onClick={() => setIsExcelDialogOpen(true)} variant="outline" className="flex items-center gap-2 justify-center">
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">تصدير إلى Excel</span>
+              <span className="sm:hidden">تصدير</span>
+            </Button>
+          </div>
 
-          
+
+          {/* Excel Export Dialog */}
+          <Dialog
+            open={isExcelDialogOpen}
+            onOpenChange={(open) => {
+              setIsExcelDialogOpen(open);
+              if (!open) {
+                setCustomFileName(''); // Clear the filename when dialog is closed
+              }
+            }}
+          >
+            <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw] overflow-y-auto">
+              <DialogHeader className="px-4 sm:px-6">
+                <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  <span>تصدير بيانات الأسر إلى Excel</span>
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground text-right">
+                  حدد الأعمدة التي ترغب في تضمينها في التصدير
+                </p>
+              </DialogHeader>
+
+              <div className="px-4 sm:px-6 py-4">
+                <div className="flex justify-end gap-2 mb-4">
+                  <Button type="button" variant="outline" onClick={handleSelectAll} className="text-sm">
+                    تحديد الكل
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleDeselectAll} className="text-sm">
+                    إلغاء التحديد
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" dir="rtl">
+                  {/* Husband columns */}
+                  {excelColumns.filter(col => col.key.startsWith('husband')).map((col, idx) => (
+                    <label
+                      key={col.key}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ?? true ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: idx + 1 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedColumns[col.key] ?? true}
+                        onChange={() => handleExcelColumnChange(col.key)}
+                        className="accent-green-600 w-4 h-4"
+                      />
+                      <span className="text-sm">{col.label}</span>
+                    </label>
+                  ))}
+                  {/* Wife columns - place immediately after husband columns */}
+                  {excelColumns.filter(col => col.key.startsWith('wife')).map((col, idx) => (
+                    <label
+                      key={col.key}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ?? true ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: idx + excelColumns.filter(c => c.key.startsWith('husband')).length + 1 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedColumns[col.key] ?? true}
+                        onChange={() => handleExcelColumnChange(col.key)}
+                        className="accent-green-600 w-4 h-4"
+                      />
+                      <span className="text-sm">{col.label}</span>
+                    </label>
+                  ))}
+                  {/* Sons group checkbox */}
+                  {sonCols.length > 0 && (
+                    <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${isSonsChecked ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: excelColumns.filter(c => c.key.startsWith('husband')).length + excelColumns.filter(c => c.key.startsWith('wife')).length + 1 }}>
+                      <input type="checkbox" checked={isSonsChecked} onChange={() => handleGroupToggle('sons')} className="accent-green-600 w-4 h-4" />
+                      <span className="text-sm">الأبناء</span>
+                    </label>
+                  )}
+                  {/* Children group checkbox */}
+                  {childCols.length > 0 && (
+                    <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${isChildrenChecked ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: excelColumns.filter(c => c.key.startsWith('husband')).length + excelColumns.filter(c => c.key.startsWith('wife')).length + 2 }}>
+                      <input type="checkbox" checked={isChildrenChecked} onChange={() => handleGroupToggle('children')} className="accent-green-600 w-4 h-4" />
+                      <span className="text-sm">الأطفال</span>
+                    </label>
+                  )}
+                  {/* Render the rest of the columns */}
+                  {excelColumns.filter(col => !col.key.startsWith('son') && !col.key.startsWith('child') && !col.key.startsWith('wife') && !col.key.startsWith('husband')).map((col, idx) => (
+                    <label
+                      key={col.key}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ?? true ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: idx + excelColumns.filter(c => c.key.startsWith('husband')).length + excelColumns.filter(c => c.key.startsWith('wife')).length + 3 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedColumns[col.key] ?? true}
+                        onChange={() => handleExcelColumnChange(col.key)}
+                        className="accent-green-600 w-4 h-4"
+                      />
+                      <span className="text-sm">{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-right mb-2">
+                    اسم ملف التصدير (اختياري)
+                  </label>
+                  <Input
+                    value={customFileName}
+                    onChange={(e) => setCustomFileName(e.target.value)}
+                    placeholder="أدخل اسم الملف (مثلاً: الأسر_المسجلة_٢٠٢٥)"
+                    className="w-full text-right"
+                  />
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button onClick={() => handleExportExcel()} className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    تصدير إلى Excel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
               </div>
     </PageWrapper>
   );

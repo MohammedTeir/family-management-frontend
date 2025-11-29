@@ -146,13 +146,14 @@ export function generatePrintTime(): string {
 
 export function getBranchInArabic(branch: string): string {
   const branches: Record<string, string> = {
-    abouda_abunasr: "عائلة ابوعودة + ابو نصر",
-    married_daughters_displaced: "بنات العائلة متزوجات خارج العائلة, نازحين عند عائلة ابو طير",
-    alnogra: "النقرة",
-    abushalbia_abumatar: "ابو شلبية + ابو مطر",
+    abushalbia: "ابو شلبية (شلف - علاينة - عزايزة)",
+    alnaqra: "النقرة (الدوار)",
+    abuawda: "ابو عودة",
+    abunasr: "ابو نصر",
+    abumatar: "ابو مطر"
   };
 
-  return branches[branch] || branch;
+  return branches[branch] || "غير محدد";
 }
 
 export function getDamageDescriptionInArabic(damageType: string): string {
@@ -160,6 +161,7 @@ export function getDamageDescriptionInArabic(damageType: string): string {
     total_destruction_uninhabitable: "هدم كلي غير قابل للسكن",
     partial_destruction_habitable: "هدم جزئي قابل للسكن",
     minor_damage: "اضرار بسيطة",
+    custom: "أخرى"
   };
 
   return damageTypes[damageType] || damageType;
@@ -168,11 +170,20 @@ export function getDamageDescriptionInArabic(damageType: string): string {
 export function getSocialStatusInArabic(status: string): string {
   const socialStatuses: Record<string, string> = {
     married: "متزوج",
-    polygamous: "متعدد الزوجات",
-    divorced: "مطلق",
-    widowed: "أرملة",  };
+    polygamous: "متعدد زوجات",
+    widowed: "ارملة",
+    vulnerable_family: "اسر هشة (ايتام)",
+    abandoned: "متروكة",
+    divorced: "مطلقة",
+    single: "عانس",
+    custom: "أخرى"
+  };
 
   return socialStatuses[status] || status;
+}
+
+export function getBooleanValueInArabic(value: boolean): string {
+  return value ? "نعم" : "لا";
 }
 
 /**

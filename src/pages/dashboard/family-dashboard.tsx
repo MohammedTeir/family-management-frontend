@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, FileText, Clock, Bell, Edit, Plus, Printer, AlertTriangle } from "lucide-react";
+import { Users, FileText, Clock, Bell, Edit, Plus, Printer, AlertTriangle, Baby } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { getRequestStatusInArabic, getRequestTypeInArabic, getDamageDescriptionInArabic, getBranchInArabic, getSocialStatusInArabic, isChild, calculateDetailedAge } from "@/lib/utils";
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Header } from "@/components/layout/header";
@@ -17,7 +17,6 @@ export default function FamilyDashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { settings } = useSettingsContext();
-
 
   useEffect(() => {
     if (settings.siteTitle) {
@@ -29,7 +28,6 @@ export default function FamilyDashboard() {
     }
   }, [settings.siteTitle, settings.language]);
 
-  
   // Fetch family data
   const { data: family, isLoading: familyLoading } = useQuery({
     queryKey: ["/api/family"],
@@ -63,10 +61,15 @@ export default function FamilyDashboard() {
   }
 
   const members = family?.members || [];
-  
+  const orphans = family?.orphans || [];
+
   const totalMembers = members.length;
   const maleCount = members.filter((m: any) => m.gender === 'male').length;
   const femaleCount = members.filter((m: any) => m.gender === 'female').length;
+
+  const totalOrphans = orphans.length;
+  const maleOrphans = orphans.filter((o: any) => o.gender === 'male').length;
+  const femaleOrphans = orphans.filter((o: any) => o.gender === 'female').length;
 
   const storedTotalMembers = family?.totalMembers || 0;
   const storedNumMales = family?.numMales || 0;
@@ -75,8 +78,12 @@ export default function FamilyDashboard() {
   const pendingRequests = requests?.filter((req: any) => req.status === 'pending') || [];
   const unreadNotifications = notifications?.slice(0, 3) || [];
 
-  // Filter children (under 2 years old)
-  const children = members.filter((member: any) => isChild(member.birthDate));
+  // Filter children (under 2 years old for members)
+  const memberChildren = members.filter((member: any) => isChild(member.birthDate));
+  // Filter children (under 2 years old for orphans)
+  const orphanChildren = orphans.filter((orphan: any) => isChild(orphan.orphanBirthDate));
+  // Total children (members + orphans under 2)
+  const children = [...memberChildren, ...orphanChildren];
 
   // Filter recent requests
   const filteredRecentRequests = [...(requests || [])]
@@ -114,11 +121,12 @@ export default function FamilyDashboard() {
                   <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
                 <div className="mr-3 sm:mr-4">
-                  <p className="text-xs sm:text-sm text-muted-foreground">إجمالي أفراد الأسرة (محسوب)</p>
-                  <p className="text-xl sm:text-2xl font-bold text-foreground">
-                    {totalMembers}
+                  <p className="text-xs sm:text-sm text-muted-foreground">إجمالي أفراد الأسرة (الزوج{family?.wifeName ? ' والزوجة' : ''} + الآخرون)</p>
+                  <p className="text-lg sm:text-xl font-bold text-foreground">المحفوظ: {storedTotalMembers}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    المحسوب: {totalMembers + 1 + (family?.wifeName ? 1 : 0)}
+                    {totalOrphans > 0 && ` + ${totalOrphans} (الأيتام)`}
                   </p>
-                  <p className="text-xs text-muted-foreground">محفوظ: {storedTotalMembers}</p>
                 </div>
               </div>
             </CardContent>
@@ -193,6 +201,13 @@ export default function FamilyDashboard() {
                   <span className="text-sm sm:text-base">عرض أفراد الأسرة</span>
                 </Button>
               </Link>
+
+              <Link href="/dashboard/orphans">
+                <Button variant="outline" className="w-full h-auto p-3 sm:p-4 justify-start">
+                  <Baby className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" />
+                  <span className="text-sm sm:text-base">عرض اليتامى</span>
+                </Button>
+              </Link>
               
               <Link href="/dashboard/requests">
                 <Button variant="outline" className="w-full h-auto p-3 sm:p-4 justify-start">
@@ -219,7 +234,7 @@ export default function FamilyDashboard() {
         </Card>
 
         {/* Branch and Damage Information */}
-        {(family?.branch || family?.warDamage2024 || family?.socialStatus) && (
+        {(family?.branch || family?.warDamage2023 || family?.socialStatus) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             {/* Branch Information */}
             {family?.branch && (
@@ -239,18 +254,18 @@ export default function FamilyDashboard() {
             )}
 
             {/* Damage Information */}
-            {family?.warDamage2024 && (
+            {family?.warDamage2023 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-red-500" />
-                    أضرار 2024
+                    أضرار 2023
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-700">
-                    {family.warDamageDescription ? 
-                      getDamageDescriptionInArabic(family.warDamageDescription) : 
+                    {family.warDamageDescription ?
+                      getDamageDescriptionInArabic(family.warDamageDescription) :
                       "أضرار مسجلة"
                     }
                   </p>

@@ -16,7 +16,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDate } from "@/lib/utils";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { validatePasswordWithPolicy } from "@/lib/utils";
 import { PageWrapper } from "@/components/layout/page-wrapper";
@@ -201,8 +201,12 @@ export default function Users() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/admin/users/${id}`);
+    mutationFn: async ({ id, isHead }: { id: number; isHead: boolean }) => {
+      // For head users, perform hard delete by default; for others, use soft delete
+      const deleteUrl = isHead
+        ? `/api/admin/users/${id}?hard=true`
+        : `/api/admin/users/${id}`;
+      await apiRequest("DELETE", deleteUrl);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
@@ -233,24 +237,19 @@ export default function Users() {
     },
   });
 
-  // Delete all heads mutation
+  // Delete all heads mutation - using the new bulk endpoint
   const deleteAllHeadsMutation = useMutation({
     mutationFn: async () => {
-      const headsToDeleteIds = headUsers.map(user => user.id);
-      // Delete all heads with cascade and hard delete
-      const deletePromises = headsToDeleteIds.map(id => 
-        apiRequest("DELETE", `/api/admin/users/${id}?cascade=true&hard=true`)
-      );
-      await Promise.all(deletePromises);
-      return headsToDeleteIds.length;
+      const res = await apiRequest("DELETE", "/api/admin/heads");
+      return res;
     },
-    onSuccess: (deletedCount) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setDeleteAllHeadsDialogOpen(false);
       setHeadsToDelete([]);
       toast({
         title: "تم حذف جميع رؤساء الأسر",
-        description: `تم حذف ${deletedCount} رب أسرة وجميع العائلات والأفراد المرتبطين بهم بنجاح.`,
+        description: "تم حذف جميع رؤساء الأسر وجميع العائلات المرتبطة بهم بنجاح.",
       });
     },
     onError: (error: any) => {
@@ -268,8 +267,12 @@ export default function Users() {
 
   // Cascade delete mutation
   const cascadeDeleteUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/admin/users/${id}?cascade=true`);
+    mutationFn: async ({ id, isHead }: { id: number; isHead: boolean }) => {
+      // For head users, perform hard delete by default; for others, use soft delete
+      const deleteUrl = isHead
+        ? `/api/admin/users/${id}?cascade=true&hard=true`
+        : `/api/admin/users/${id}?cascade=true`;
+      await apiRequest("DELETE", deleteUrl);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
@@ -285,7 +288,7 @@ export default function Users() {
     onError: (error: any) => {
       let message = error.message;
       if (message.includes('<!DOCTYPE') || message === 'Internal server error') {
-        message = "حدث خطأ غير متوقع أثناء الحذف المتسلسل. يرجى المحاولة لاحقاً أو التواصل مع الدعم.";
+        message = "حدث خطأ غير متوقع أثناء الحذف المتسلسل. يرجى المحاولة لاحذاً أو التواصل مع الدعم.";
       }
       toast({
         title: "خطأ في الحذف المتسلسل",
@@ -460,7 +463,9 @@ export default function Users() {
   };
 
   const handleDelete = (user: any) => {
-    setUserToDelete(user);
+    // Determine if user is a head (role is 'head' or admin with numeric username)
+    const isHead = user.role === 'head' || (user.role === 'admin' && /^\d+$/.test(user.username));
+    setUserToDelete({ ...user, isHead });
     setIsDeleteDialogOpen(true);
   };
 
@@ -917,7 +922,7 @@ export default function Users() {
               <AlertDialogFooter className="flex-row-reverse">
                 <AlertDialogCancel>إلغاء</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => userToDelete && deleteUserMutation.mutate(userToDelete.id)}
+                  onClick={() => userToDelete && deleteUserMutation.mutate({ id: userToDelete.id, isHead: userToDelete.isHead })}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   حذف
@@ -946,7 +951,7 @@ export default function Users() {
                 <AlertDialogAction
                   onClick={() => {
                     setCascadeDialogOpen(false);
-                    if (userToDelete) cascadeDeleteUserMutation.mutate(userToDelete.id);
+                    if (userToDelete) cascadeDeleteUserMutation.mutate({ id: userToDelete.id, isHead: userToDelete.isHead });
                   }}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
@@ -1080,7 +1085,7 @@ export default function Users() {
                             يتم حذف {headUsers.length} رب أسرة وجميع البيانات المرتبطة بهم
                           </p>
                           <p className="text-xs text-muted-foreground mt-2">
-                            ⚠️ هذه العملية قد تستغرق عدة دقائق، يرجى عدم إغلاق النافذة
+                            ⚠️ هذه العملية قد تستغرق عدة ثوانٍ، يرجى الانتظار
                           </p>
                         </div>
                       </div>

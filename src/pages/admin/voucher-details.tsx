@@ -173,22 +173,18 @@ export default function VoucherDetails() {
         userId: family.userId,
         // Add identity IDs for search functionality
         husbandID: family.husbandID,
-        wifeID: family.wives && family.wives.length > 0 ? 
-          family.wives.map((wife: any) => wife.wifeID).filter(Boolean).join(', ') : 
-          family.wifeID,
+        wifeID: family.wifeID || '',
         // Add additional family data for filtering
         branch: family.branch,
         isDisplaced: family.isDisplaced,
         displacedLocation: family.displacedLocation,
         isAbroad: family.isAbroad,
-        warDamage2024: family.warDamage2024,
+        warDamage2023: family.warDamage2023,
         socialStatus: family.socialStatus,
         numMales: family.numMales,
         numFemales: family.numFemales,
         // Add pregnant and children data
-        wifePregnant: family.wives && family.wives.length > 0 ? 
-          family.wives.some((wife: any) => wife.wifePregnant) : 
-          family.wifePregnant,
+        wifePregnant: family.wifePregnant || false,
         childrenCount: children.length,
         hasChildren: children.length > 0
       };
@@ -231,22 +227,18 @@ export default function VoucherDetails() {
           userId: user.id,
           // Add identity IDs for search functionality (if user has family)
           husbandID: userFamily?.husbandID || null,
-          wifeID: userFamily?.wives && userFamily.wives.length > 0 ? 
-            userFamily.wives.map((wife: any) => wife.wifeID).filter(Boolean).join(', ') : 
-            userFamily?.wifeID || null,
+          wifeID: userFamily?.wifeID || null,
           // Use family data if available, otherwise use defaults
           branch: userFamily?.branch || null,
           isDisplaced: userFamily?.isDisplaced || false,
           displacedLocation: userFamily?.displacedLocation || null,
           isAbroad: userFamily?.isAbroad || false,
-          warDamage2024: userFamily?.warDamage2024 || false,
+          warDamage2023: userFamily?.warDamage2023 || false,
           socialStatus: userFamily?.socialStatus || null,
           numMales: userFamily?.numMales || 0,
           numFemales: userFamily?.numFemales || 0,
           // Add pregnant and children data from family if available
-          wifePregnant: userFamily?.wives && userFamily.wives.length > 0 ? 
-            userFamily.wives.some((wife: any) => wife.wifePregnant) : 
-            userFamily?.wifePregnant || false,
+          wifePregnant: userFamily?.wifePregnant || false,
           childrenCount: userFamily ? userFamily.members?.filter((member: any) => {
             if (!member.birthDate) return false;
             const age = calculateAge(member.birthDate);
@@ -298,7 +290,7 @@ export default function VoucherDetails() {
     
     // War damage filter
     const matchesDamaged = damagedFilter === 'all' || 
-                          (damagedFilter === 'yes' ? recipient.warDamage2024 : !recipient.warDamage2024);
+                          (damagedFilter === 'yes' ? recipient.warDamage2023 : !recipient.warDamage2023);
     
     // Social status filter
     const matchesSocialStatus = socialStatusFilter === 'all' || recipient.socialStatus === socialStatusFilter;
@@ -631,10 +623,11 @@ export default function VoucherDetails() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">جميع الفروع</SelectItem>
-                            <SelectItem value="abouda_abunasr">عائلة ابوعودة + ابو نصر</SelectItem>
-                            <SelectItem value="married_daughters_displaced">بنات العائلة متزوجات خارج العائلة</SelectItem>
-                            <SelectItem value="alnogra">النقرة</SelectItem>
-                            <SelectItem value="abushalbia_abumatar">ابو شلبية + ابو مطر</SelectItem>
+                            <SelectItem value="abushalbia">ابو شلبية (شلف - علاينة - عزايزة)</SelectItem>
+                            <SelectItem value="alnaqra">النقرة (الدوار)</SelectItem>
+                            <SelectItem value="abuawda">ابو عودة</SelectItem>
+                            <SelectItem value="abunasr">ابو نصر</SelectItem>
+                            <SelectItem value="abumatar">ابو مطر</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -686,9 +679,12 @@ export default function VoucherDetails() {
                           <SelectContent>
                             <SelectItem value="all">جميع الحالات</SelectItem>
                             <SelectItem value="married">متزوج</SelectItem>
-                            <SelectItem value="polygamous">متعدد الزوجات</SelectItem>
-                            <SelectItem value="divorced">مطلق</SelectItem>
-                            <SelectItem value="widowed">أرملة</SelectItem>
+                            <SelectItem value="polygamous">متعدد زوجات</SelectItem>
+                            <SelectItem value="widowed">ارملة</SelectItem>
+                            <SelectItem value="vulnerable_family">اسر هشة (ايتام)</SelectItem>
+                            <SelectItem value="abandoned">متروكة</SelectItem>
+                            <SelectItem value="divorced">مطلقة</SelectItem>
+                            <SelectItem value="single">عانس</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

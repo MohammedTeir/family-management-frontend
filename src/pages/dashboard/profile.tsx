@@ -1,27 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
-import { useSettingsContext } from "@/App";
-import { useEffect } from "react";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { validatePasswordWithPolicy } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 import { Header } from "@/components/layout/header";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState({
+    username: user?.username || "",
+    gender: user?.gender || "male",
+  });
   const { settings } = useSettingsContext();
 
+  // Load profile data
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setProfileLoading(true);
+        const response = await apiClient.get("/api/user/profile");
+        setProfileData({
+          username: response.data.username,
+          gender: response.data.gender || "male",
+        });
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setProfileError("حدث خطأ أثناء تحميل بيانات الملف الشخصي");
+        toast({
+          title: "خطأ",
+          description: "تعذر تحميل بيانات الملف الشخصي",
+          variant: "destructive",
+        });
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchProfile();
+    }
+  }, [user, toast]);
+
+  // Update document title and direction
   useEffect(() => {
     if (settings.siteTitle) {
       document.title = settings.siteTitle;
@@ -31,6 +68,7 @@ export default function ProfilePage() {
       document.body.dir = settings.language === 'ar' ? 'rtl' : 'ltr';
     }
   }, [settings.siteTitle, settings.language]);
+
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,8 +139,9 @@ export default function ProfilePage() {
           <CardContent>
           <div className="mb-4 sm:mb-6">
             <Label className="text-sm sm:text-base">اسم المستخدم</Label>
-            <Input value={user?.username || ""} disabled className="text-sm sm:text-base" />
+            <Input value={profileData.username} disabled className="text-sm sm:text-base" />
           </div>
+
           <form onSubmit={handlePasswordChange}>
             <div className="mb-3 sm:mb-4">
               <Label htmlFor="currentPassword" className="text-sm sm:text-base">كلمة المرور الحالية</Label>

@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Bell, LogOut, User, Users, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 
 const breadcrumbMap: Record<string, string> = {
@@ -26,7 +26,8 @@ const breadcrumbMap: Record<string, string> = {
 export function AppHeader() {
   const [location, setLocation] = useLocation();
   const { user, family, logoutMutation, dualRole, currentDashboard, chooseDashboard } = useAuth();
-  const { settings } = useSettingsContext();
+  const settingsContext = useSettingsContext();
+  const settings = settingsContext?.settings || {};
   
   const currentPageTitle = breadcrumbMap[location] || "الصفحة الرئيسية";
 
@@ -61,7 +62,12 @@ export function AppHeader() {
       case 'admin':
         return 'مشرف';
       case 'head':
-        return 'رب أسرة';
+        // Use gender-appropriate term based on family data if available
+        if (family?.headGender === 'female') {
+          return 'ربة أسرة';
+        } else {
+          return 'رب أسرة';
+        }
       default:
         return role;
     }
@@ -75,7 +81,7 @@ export function AppHeader() {
     }
   };
 
-  // Get display name - prefer husband name for family heads, fallback to username
+  // Get display name - use head's name for family heads, fallback to username
   const getDisplayName = () => {
     if (user?.role === 'head' && family?.husbandName) {
       return family.husbandName;

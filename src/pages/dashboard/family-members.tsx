@@ -17,7 +17,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { calculateAge, getGenderInArabic, getRelationshipInArabic, calculateDetailedAge } from "@/lib/utils";
 import MemberForm from "@/components/forms/member-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { apiClient } from "@/lib/api";
 import { PageWrapper } from "@/components/layout/page-wrapper";
@@ -25,11 +25,14 @@ import { Header } from "@/components/layout/header";
 
 const memberSchema = z.object({
   fullName: z.string().min(1, "الاسم مطلوب"),
+  memberID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام").optional(),
   birthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
   gender: z.enum(["male", "female"], { required_error: "نوع الجنس مطلوب" }),
   relationship: z.string().min(1, "القرابة مطلوبة"),
   isDisabled: z.boolean().default(false),
   disabilityType: z.string().optional(),
+  hasChronicIllness: z.boolean().default(false),
+  chronicIllnessType: z.string().optional(),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -48,6 +51,7 @@ export default function FamilyMembers() {
   });
 
   const members = family?.members || [];
+  const orphans = family?.orphans || [];
   
   const totalMembers = members.length;
   const maleCount = members.filter((m: any) => m.gender === 'male').length;
@@ -61,11 +65,14 @@ export default function FamilyMembers() {
     resolver: zodResolver(memberSchema),
     defaultValues: {
       fullName: "",
+      memberID: "",
       birthDate: "",
       gender: "male",
       relationship: "",
       isDisabled: false,
       disabilityType: "",
+      hasChronicIllness: false,
+      chronicIllnessType: "",
     },
   });
 
@@ -75,11 +82,14 @@ export default function FamilyMembers() {
       setEditingMember(null);
       form.reset({
         fullName: "",
+        memberID: "",
         birthDate: "",
         gender: "male",
         relationship: "",
         isDisabled: false,
         disabilityType: "",
+        hasChronicIllness: false,
+        chronicIllnessType: "",
       });
     }
   };
@@ -204,7 +214,7 @@ export default function FamilyMembers() {
 
   const onSubmit = (data: MemberFormData) => {
     console.log('Form submitted with data:', data);
-    
+
     if (editingMember) {
       console.log('Updating existing member:', editingMember.id);
       updateMemberMutation.mutate({ id: editingMember.id, data });
@@ -216,7 +226,21 @@ export default function FamilyMembers() {
 
   const handleEdit = (member: any) => {
     console.log('Editing member:', member);
-    setEditingMember(member);
+    // Ensure member has all required fields for the form
+    const memberWithDefaults = {
+      id: member.id, // Critical: preserve the member ID
+      memberID: member.memberID || "",
+      fullName: member.fullName || "",
+      birthDate: member.birthDate || "",
+      gender: member.gender || "male",
+      relationship: member.relationship || "",
+      isDisabled: member.isDisabled || false,
+      disabilityType: member.disabilityType || "",
+      hasChronicIllness: member.hasChronicIllness || false,
+      chronicIllnessType: member.chronicIllnessType || "",
+    };
+    setEditingMember(memberWithDefaults);
+    form.reset(memberWithDefaults);
     setIsDialogOpen(true);
   };
 
@@ -224,11 +248,14 @@ export default function FamilyMembers() {
     setEditingMember(null);
     form.reset({
       fullName: "",
+      memberID: "",
       birthDate: "",
       gender: "male",
       relationship: "",
       isDisabled: false,
       disabilityType: "",
+      hasChronicIllness: false,
+      chronicIllnessType: "",
     });
     setIsDialogOpen(true);
   };
@@ -267,16 +294,25 @@ export default function FamilyMembers() {
     }
   };
 
-  // Calculate children count (under 2 years old)
-  const childrenCount = members.filter((member: any) => {
+  // Calculate children count (sons and daughters under 18 years old for members)
+  const memberChildrenCount = members.filter((member: any) => {
     const age = calculateAge(member.birthDate);
-    return age < 2;
+    return (member.relationship === "son" || member.relationship === "daughter") && age < 18;
   }).length;
 
-  // Filter children for display (under 2 years old)
+  // Calculate children count (under 18 years old for orphans)
+  const orphanChildrenCount = orphans.filter((orphan: any) => {
+    const age = calculateAge(orphan.orphanBirthDate);
+    return age < 18;
+  }).length;
+
+  // Total children count (sons and daughters + orphans under 18)
+  const childrenCount = memberChildrenCount + orphanChildrenCount;
+
+  // Filter children for display (sons and daughters under 18 years old for members)
   const children = members.filter((member: any) => {
     const age = calculateAge(member.birthDate);
-    return age < 2;
+    return (member.relationship === "son" || member.relationship === "daughter") && age < 18;
   });
 
   const totalPages = Math.ceil(members.length / pageSize);
@@ -332,11 +368,11 @@ export default function FamilyMembers() {
                   <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
                 <div className="mr-3 sm:mr-4">
-                  <p className="text-xs sm:text-sm text-muted-foreground">إجمالي الأفراد (محسوب)</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">إجمالي أفراد الأسرة (محسوب)</p>
                   <p className="text-xl sm:text-2xl font-bold text-foreground">
                     {totalMembers}
                   </p>
-                  <p className="text-xs text-muted-foreground">محفوظ: {storedTotalMembers}</p>
+                  <p className="text-xs text-muted-foreground">أبناء وبنات الأسرة، لا يتضمن الأيتام</p>
                 </div>
               </div>
             </CardContent>
@@ -353,7 +389,7 @@ export default function FamilyMembers() {
                   <p className="text-xl sm:text-2xl font-bold text-foreground">
                     {maleCount}
                   </p>
-                  <p className="text-xs text-muted-foreground">محفوظ: {storedNumMales}</p>
+                  <p className="text-xs text-muted-foreground">من أبناء الأسرة، لا يتضمن الأيتام</p>
                 </div>
               </div>
             </CardContent>
@@ -370,7 +406,7 @@ export default function FamilyMembers() {
                   <p className="text-xl sm:text-2xl font-bold text-foreground">
                     {femaleCount}
                   </p>
-                  <p className="text-xs text-muted-foreground">محفوظ: {storedNumFemales}</p>
+                  <p className="text-xs text-muted-foreground">من بنات الأسرة، لا يتضمن الأيتام</p>
                 </div>
               </div>
             </CardContent>
@@ -387,7 +423,7 @@ export default function FamilyMembers() {
                   <p className="text-xl sm:text-2xl font-bold text-foreground">
                     {childrenCount}
                   </p>
-                  <p className="text-xs text-muted-foreground">أقل من 2 سنة</p>
+                  <p className="text-xs text-muted-foreground">أبناء وبنات الأسرة أقل من 18 سنة (يتم احتساب الأيتام أيضًا)</p>
                 </div>
               </div>
             </CardContent>
@@ -455,6 +491,12 @@ export default function FamilyMembers() {
                               ) : (
                                 <Badge variant="secondary" className="mr-2 text-xs">لا</Badge>
                               )}
+                              <span className="text-muted-foreground mr-2">مرض مزمن:</span>
+                              {member.hasChronicIllness ? (
+                                <Badge variant="destructive" className="mr-2 text-xs">نعم</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="mr-2 text-xs">لا</Badge>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -475,6 +517,7 @@ export default function FamilyMembers() {
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">الجنس</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">القرابة</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">إعاقة</th>
+                        <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">مرض مزمن</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">الإجراءات</th>
                       </tr>
                     </thead>
@@ -491,6 +534,13 @@ export default function FamilyMembers() {
                           <td className="border border-gray-300 px-3 sm:px-4 py-2 text-sm">{getRelationshipInArabic(member.relationship)}</td>
                           <td className="border border-gray-300 px-3 sm:px-4 py-2">
                             {member.isDisabled ? (
+                              <Badge variant="destructive" className="text-xs">نعم</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">لا</Badge>
+                            )}
+                          </td>
+                          <td className="border border-gray-300 px-3 sm:px-4 py-2">
+                            {member.hasChronicIllness ? (
                               <Badge variant="destructive" className="text-xs">نعم</Badge>
                             ) : (
                               <Badge variant="secondary" className="text-xs">لا</Badge>

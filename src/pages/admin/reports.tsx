@@ -21,7 +21,7 @@ import {
   getSocialStatusInArabic,
   formatDate,
 } from "@/lib/utils";
-import { useSettingsContext } from "@/App";
+import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#FF6384", "#36A2EB", "#FFCE56"];
@@ -88,7 +88,7 @@ export default function ReportsPage() {
   const approvedRequests = filteredRequestsData.filter(r => r.status === "approved").length;
   const rejectedRequests = filteredRequestsData.filter(r => r.status === "rejected").length;
   const displacedFamilies = filteredFamilies.filter(f => f.isDisplaced).length;
-  const damagedFamilies = filteredFamilies.filter(f => f.warDamage2024).length;
+  const damagedFamilies = filteredFamilies.filter(f => f.warDamage2023).length;
   const abroadFamilies = filteredFamilies.filter(f => f.isAbroad).length;
   const adminUsers = filteredUsersData.filter(u => u.role === "admin").length;
 // Count heads: role === 'head' OR (role === 'admin' and username is all numbers)
@@ -136,7 +136,7 @@ const headUsers = filteredUsersData.filter(u => u.role === "head" || (u.role ===
         socialStatus: getSocialStatusInArabic(f.socialStatus),
         status: [
           f.isDisplaced ? "نازح" : "",
-          f.warDamage2024 ? "متضرر" : "",
+          f.warDamage2023 ? "متضرر" : "",
           f.isAbroad ? "مغترب" : ""
         ].filter(Boolean).join("، "),
         createdAt: formatDate(f.createdAt)
@@ -451,7 +451,7 @@ const headUsers = filteredUsersData.filter(u => u.role === "head" || (u.role ===
                         <td className="px-2 sm:px-4 py-3">
                           <div className="flex flex-wrap gap-1">
                             {family.isDisplaced && <Badge variant="destructive" className="text-xs">نازح</Badge>}
-                            {family.warDamage2024 && <Badge variant="outline" className="text-xs">متضرر</Badge>}
+                            {family.warDamage2023 && <Badge variant="outline" className="text-xs">متضرر</Badge>}
                             {family.isAbroad && <Badge className="bg-blue-100 text-blue-800 text-xs">مغترب</Badge>}
                           </div>
                         </td>
