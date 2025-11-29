@@ -52,11 +52,21 @@ export default function ImportHeads() {
         setProgress(0);
         setProcessedCount(0);
         setTotalRecords(response.data.totalRecords);
-        setCurrentStatus(`تم تهيئة جلسة الاستيراد: ${response.data.totalRecords} سجل`);
-        toast({
-          title: "تم تهيئة الجلسة",
-          description: `تم تهيئة جلسة الاستيراد لـ ${response.data.totalRecords} سجل`
-        });
+        setCurrentStatus(`تم تهيئة جلسة الاستيراد: ${response.data.totalRecords} سجل (${response.data.validRecords} صحيح، ${response.data.invalidRecords} غير صحيح)`);
+
+        // Show appropriate toast based on validation results
+        if (response.data.invalidRecords > 0) {
+          toast({
+            title: `تم تهيئة الجلسة مع ${response.data.invalidRecords} سجل غير صحيح`,
+            description: `تم تخطي ${response.data.invalidRecords} سجل غير صحيح. سيتم استيراد ${response.data.validRecords} سجل صالح فقط.`,
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "تم تهيئة الجلسة بنجاح",
+            description: `تم تهيئة جلسة الاستيراد لـ ${response.data.validRecords} سجل`
+          });
+        }
       } else {
         throw new Error(response.data.message || "فشل في تهيئة جلسة الاستيراد");
       }
@@ -124,7 +134,12 @@ export default function ImportHeads() {
             setImportResults({
               successCount: response.data.processed,
               errorCount: 0,
-              message: `تم استيراد ${response.data.processed} سجل`
+              validRecords: importSession.validRecords,
+              invalidRecords: importSession.invalidRecords,
+              invalidRows: importSession.invalidRows,
+              message: importSession.invalidRecords > 0
+                ? `تم استيراد ${response.data.processed} سجل من أصل ${importSession.validRecords} سجل صالح (تم تخطي ${importSession.invalidRecords} سجل غير صحيح)`
+                : `تم استيراد ${response.data.processed} سجل`
             });
           } else {
             // Move to next chunk
@@ -381,9 +396,28 @@ export default function ImportHeads() {
                     <h4 className="font-semibold text-blue-800">معلومات الجلسة</h4>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-blue-800">
-                    <div>عدد السجلات: <span className="font-medium">{importSession.totalRecords}</span></div>
+                    <div>عدد السجلات الكلي: <span className="font-medium">{importSession.totalRecords}</span></div>
                     <div>رقم الجلسة: <span className="font-mono text-xs">{importSession.sessionId}</span></div>
+                    <div>السجلات الصحيحة: <span className="font-medium text-green-600">{importSession.validRecords}</span></div>
+                    <div>السجلات غير الصحيحة: <span className="font-medium text-red-600">{importSession.invalidRecords}</span></div>
                   </div>
+
+                  {/* Show invalid rows if any */}
+                  {importSession.invalidRecords > 0 && (
+                    <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h5 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        السجلات غير الصحيحة ({importSession.invalidRecords})
+                      </h5>
+                      <div className="max-h-40 overflow-y-auto text-xs text-yellow-700">
+                        {(importSession.invalidRows || []).map((error: string, index: number) => (
+                          <div key={index} className="py-1 border-b border-yellow-100 last:border-0">
+                            {error}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress Bar */}
@@ -399,7 +433,7 @@ export default function ImportHeads() {
                     ></div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {processedCount} من {totalRecords} سجل تمت معالجتها
+                    {processedCount} من {importSession.validRecords} سجل تمت معالجتها
                   </div>
                 </div>
 
@@ -595,6 +629,29 @@ export default function ImportHeads() {
                   </div>
                 );
               })()}
+
+              {/* Display invalid records if any */}
+              {importResults.invalidRecords && importResults.invalidRecords > 0 && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center gap-2 font-semibold text-yellow-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>السجلات غير الصحيحة (تم تخطيها: {importResults.invalidRecords})</span>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {(importResults.invalidRows || []).map((error: string, index: number) => (
+                      <div key={`invalid-${index}`} className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded border-l-4 border-yellow-500">
+                        {error}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-muted-foreground mt-2">
+                    هذه السجلات تم تخطيها بسبب عدم استيفائها لشروط الاستيراد.
+                    يُرجى تصحيحها في ملف Excel وإعادة المحاولة.
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
