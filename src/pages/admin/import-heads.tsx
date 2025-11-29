@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Users, FileText, Hash, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Users, FileText, Hash, Loader2, RotateCcw, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageWrapper } from "@/components/layout/page-wrapper";
@@ -18,78 +17,162 @@ export default function ImportHeads() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importResults, setImportResults] = useState<any>(null);
   const [activeErrorTab, setActiveErrorTab] = useState("all");
+  const [importSession, setImportSession] = useState<any>(null);
+  const [progress, setProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState("");
+  const [importStatus, setImportStatus] = useState<any>(null);
+  const [chunkSize, setChunkSize] = useState(50); // Number of records per chunk
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const importMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('excel', file);
-      
-      // Create AbortController with 10 minute timeout for large imports
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
-      
-      try {
-        const res = await apiRequest("POST", "/api/admin/import-heads", formData, {
-          headers: {
-            // Don't set Content-Type, let the browser set it for FormData
-          },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        return res.data;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-          throw new Error('Import timeout - the file is too large or the process is taking too long');
-        }
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      setImportResults(data);
-      
-      // Show appropriate toast based on results
-      if (data.errorCount === 0) {
-        toast({
-          title: "تم الاستيراد بنجاح",
-          description: `تم استيراد ${data.successCount} عائلة بنجاح`,
-        });
-      } else if (data.successCount === 0) {
-        toast({
-          title: "فشل الاستيراد",
-          description: `فشل في استيراد جميع الصفوف (${data.errorCount} خطأ)`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "استيراد جزئي",
-          description: data.message,
-          variant: "default",
-        });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Import error:', error);
-      let errorMessage = error.message;
-      
-      // Handle specific error types
-      if (error.message.includes('404')) {
-        errorMessage = "الخدمة غير متوفرة. تأكد من تشغيل الخادم";
-      } else if (error.message.includes('403')) {
-        errorMessage = "غير مصرح لك بهذه العملية";
-      } else if (error.message.includes('500')) {
-        errorMessage = "خطأ في الخادم. يرجى المحاولة لاحقاً";
-      } else if (error.message.includes('network') || error.message.includes('fetch')) {
-        errorMessage = "خطأ في الاتصال. تحقق من الإنترنت";
-      }
-
+  // Initialize import session
+  const initializeImportSession = async () => {
+    if (!selectedFile) {
       toast({
-        title: "خطأ في الاستيراد",
-        description: errorMessage,
+        title: "لا يوجد ملف",
+        description: "يرجى اختيار ملف Excel أولاً",
         variant: "destructive",
       });
-    },
-  });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('excel', selectedFile);
+
+      const response = await apiRequest("POST", "/api/admin/import-heads/init", formData, {
+        headers: {
+          // Don't set Content-Type, let the browser set it for FormData
+        }
+      });
+
+      if (response.data.sessionId) {
+        setImportSession(response.data);
+        setProgress(0);
+        setProcessedCount(0);
+        setTotalRecords(response.data.totalRecords);
+        setCurrentStatus(`تم تهيئة جلسة الاستيراد: ${response.data.totalRecords} سجل`);
+        toast({
+          title: "تم تهيئة الجلسة",
+          description: `تم تهيئة جلسة الاستيراد لـ ${response.data.totalRecords} سجل`
+        });
+      } else {
+        throw new Error(response.data.message || "فشل في تهيئة جلسة الاستيراد");
+      }
+    } catch (error: any) {
+      console.error('Error initializing import session:', error);
+      toast({
+        title: "خطأ في تهيئة الجلسة",
+        description: error.message || "فشل في تهيئة جلسة الاستيراد",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Process the import in chunks
+  const processImportChunks = async () => {
+    if (!importSession?.sessionId) {
+      toast({
+        title: "لا توجد جلسة",
+        description: "يرجى تهيئة جلسة الاستيراد أولاً",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setCurrentStatus("جاري بدء معالجة الجلسة...");
+
+    try {
+      // Process in chunks until completion
+      let startIdx = 0;
+      let allDone = false;
+
+      while (!allDone && importSession?.sessionId) {
+        const response = await apiRequest("POST", "/api/admin/import-heads/chunk", {
+          sessionId: importSession.sessionId,
+          startIdx,
+          chunkSize
+        });
+
+        if (response.data.success) {
+          setProcessedCount(response.data.processed);
+          setProgress(response.data.progress);
+          setCurrentStatus(`جاري المعالجة: ${response.data.processed}/${response.data.total} (${response.data.progress}%)`);
+
+          if (response.data.done) {
+            allDone = true;
+            // Get final results
+            const finalResponse = await apiRequest("GET", `/api/admin/import-heads/status/${importSession.sessionId}`);
+            setImportStatus(finalResponse.data);
+
+            // Finalize the session
+            await apiRequest("POST", "/api/admin/import-heads/finalize", {
+              sessionId: importSession.sessionId
+            });
+
+            setIsProcessing(false);
+            setImportSession(null);
+            setCurrentStatus("اكتمل الاستيراد بنجاح!");
+
+            toast({
+              title: "اكتمل الاستيراد",
+              description: `تم استيراد ${response.data.processed} سجل بنجاح`,
+            });
+
+            setImportResults({
+              successCount: response.data.processed,
+              errorCount: 0,
+              message: `تم استيراد ${response.data.processed} سجل`
+            });
+          } else {
+            // Move to next chunk
+            startIdx = response.data.processed;
+          }
+        } else {
+          throw new Error(response.data.message || "فشل في معالجة جزء من البيانات");
+        }
+
+        // Small delay to not overwhelm the server
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (error: any) {
+      console.error('Error processing import chunks:', error);
+      setIsProcessing(false);
+      toast({
+        title: "خطأ في معالجة البيانات",
+        description: error.message || "فشل في معالجة جزء من البيانات",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Get current import status
+  const checkImportStatus = async () => {
+    if (!importSession?.sessionId) return;
+
+    try {
+      const response = await apiRequest("GET", `/api/admin/import-heads/status/${importSession.sessionId}`);
+      setImportStatus(response.data);
+      setProgress(response.data.progress);
+      setProcessedCount(response.data.processed);
+    } catch (error) {
+      console.error('Error checking import status:', error);
+    }
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isProcessing && importSession?.sessionId) {
+      interval = setInterval(checkImportStatus, 2000); // Check every 2 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isProcessing, importSession?.sessionId]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -104,10 +187,14 @@ export default function ImportHeads() {
       }
       setSelectedFile(file);
       setImportResults(null);
+      setImportSession(null);
+      setProgress(0);
+      setProcessedCount(0);
+      setTotalRecords(0);
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!selectedFile) {
       toast({
         title: "لا يوجد ملف",
@@ -117,11 +204,11 @@ export default function ImportHeads() {
       return;
     }
 
-    // Validate file size (max 10MB)
-    if (selectedFile.size > 10 * 1024 * 1024) {
+    // Validate file size (max 20MB for chunked imports)
+    if (selectedFile.size > 20 * 1024 * 1024) {
       toast({
         title: "حجم الملف كبير",
-        description: "يجب أن يكون حجم الملف أقل من 10 ميجابايت",
+        description: "يجب أن يكون حجم الملف أقل من 20 ميجابايت",
         variant: "destructive",
       });
       return;
@@ -129,8 +216,23 @@ export default function ImportHeads() {
 
     // Clear previous results
     setImportResults(null);
-    
-    importMutation.mutate(selectedFile);
+    setImportStatus(null);
+
+    // Initialize import session
+    await initializeImportSession();
+  };
+
+  const handleStartImport = async () => {
+    if (!importSession?.sessionId) {
+      toast({
+        title: "لا توجد جلسة",
+        description: "يرجى تهيئة جلسة الاستيراد أولاً",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await processImportChunks();
   };
 
   const downloadTemplate = () => {
@@ -216,7 +318,7 @@ export default function ImportHeads() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <Upload className="h-5 w-5 sm:h-6 sm:w-6" />
-              استيراد رؤساء العائلات من Excel
+              استيراد رؤساء العائلات من Excel (طريقة محسنة)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -225,12 +327,13 @@ export default function ImportHeads() {
               <FileSpreadsheet className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <p><strong>تعليمات الاستيراد:</strong></p>
+                  <p><strong>تعليمات الاستيراد المحسّن:</strong></p>
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     <li>الحقول المطلوبة: اسم رب الأسرة (husbandName) ورقم الهوية (husbandID)</li>
                     <li>رقم الهوية يجب أن يكون 9 أرقام</li>
                     <li>يتم استخدام رقم الهوية كاسم مستخدم وكلمة مرور افتراضية</li>
                     <li>الحقول الاختيارية: معلومات الزوجة (wifeName, wifeID، إلخ)، تاريخ الميلاد، المهنة، أرقام الهواتف، عنوان السكن، إلخ</li>
+                    <li>تتم معالجة الملفات الكبيرة على دفعات لمنع حدوث أخطاء المهلة</li>
                   </ul>
                 </div>
               </AlertDescription>
@@ -260,7 +363,7 @@ export default function ImportHeads() {
                 onChange={handleFileSelect}
                 className="cursor-pointer"
               />
-              
+
               {selectedFile && (
                 <div className="flex items-center gap-2 text-sm text-green-600">
                   <CheckCircle className="h-4 w-4" />
@@ -269,24 +372,102 @@ export default function ImportHeads() {
               )}
             </div>
 
-            {/* Import Button */}
-            <Button 
-              onClick={handleImport}
-              disabled={!selectedFile || importMutation.isPending}
-              className="w-full"
-            >
-              {importMutation.isPending ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  جاري الاستيراد...
+            {/* Import Session Info */}
+            {importSession && (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <h4 className="font-semibold text-blue-800">معلومات الجلسة</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-blue-800">
+                    <div>عدد السجلات: <span className="font-medium">{importSession.totalRecords}</span></div>
+                    <div>رقم الجلسة: <span className="font-mono text-xs">{importSession.sessionId}</span></div>
+                  </div>
                 </div>
+
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>مستوى التقدم</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {processedCount} من {totalRecords} سجل تمت معالجتها
+                  </div>
+                </div>
+
+                {/* Status Message */}
+                {currentStatus && (
+                  <div className="flex items-center gap-2 text-sm p-3 bg-yellow-50 rounded-lg">
+                    <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
+                    <span>{currentStatus}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Import Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {!importSession ? (
+                <Button
+                  onClick={handleImport}
+                  disabled={!selectedFile || isProcessing}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      جاري التهيئة...
+                    </div>
+                  ) : (
+                    "تهيئة جلسة الاستيراد"
+                  )}
+                </Button>
               ) : (
-                "استيراد البيانات"
+                <Button
+                  onClick={handleStartImport}
+                  disabled={isProcessing}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      المعالجة جارية...
+                    </div>
+                  ) : (
+                    "ابدأ الاستيراد"
+                  )}
+                </Button>
               )}
-            </Button>
+
+              {importSession && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setImportSession(null);
+                    setProgress(0);
+                    setProcessedCount(0);
+                    setTotalRecords(0);
+                    setImportResults(null);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  إعادة تعيين
+                </Button>
+              )}
+            </div>
 
             {/* Enhanced Loading message for large imports */}
-            {importMutation.isPending && (
+            {isProcessing && (
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-3 p-6 bg-blue-50 rounded-lg border border-blue-200">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -304,7 +485,7 @@ export default function ImportHeads() {
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Progress hint */}
                 <div className="text-center">
                   <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
@@ -350,7 +531,7 @@ export default function ImportHeads() {
               {importResults.errors && importResults.errors.length > 0 && (() => {
                 const errorCategories = categorizeErrors(importResults.errors);
                 const totalErrors = importResults.errors.length;
-                
+
                 return (
                   <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -364,7 +545,7 @@ export default function ImportHeads() {
                         </Badge>
                       )}
                     </div>
-                    
+
                     <Tabs value={activeErrorTab} onValueChange={setActiveErrorTab}>
                       <TabsList className="flex w-full gap-1 mb-4 h-auto p-1 overflow-x-auto overflow-y-hidden">
                         <TabsTrigger value="all" className="text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-2 flex-shrink-0 whitespace-nowrap">
@@ -385,7 +566,7 @@ export default function ImportHeads() {
                           )}
                         </TabsTrigger>
                       </TabsList>
-                      
+
                       <TabsContent value="all">
                         <div className="max-h-60 overflow-y-auto space-y-1">
                           {importResults.errors.map((error: string, index: number) => (
@@ -395,7 +576,7 @@ export default function ImportHeads() {
                           ))}
                         </div>
                       </TabsContent>
-                      
+
                       <TabsContent value="duplicate">
                         <div className="space-y-2">
                           <div className="text-sm text-muted-foreground mb-2">
