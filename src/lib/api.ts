@@ -20,7 +20,7 @@ export const removeToken = (): void => {
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: false, // No longer need cookies for JWT
-  timeout: 10000, // 10 second timeout
+  timeout: 600000, // 10 minute timeout (600,000 ms) for long-running operations like imports
   headers: {
     'Content-Type': 'application/json',
   },

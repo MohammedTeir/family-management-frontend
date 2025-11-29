@@ -9,17 +9,23 @@ export async function apiRequest(
   data?: unknown,
   config?: AxiosRequestConfig
 ) {
+  // Set default timeout to 10 minutes for long-running operations like imports
+  const defaultConfig: AxiosRequestConfig = {
+    timeout: 600000, // 10 minutes (600,000 ms)
+    ...config
+  };
+
   switch (method.toLowerCase()) {
     case 'get':
-      return api.get(url, config);
+      return api.get(url, defaultConfig);
     case 'post':
-      return api.post(url, data, config);
+      return api.post(url, data, defaultConfig);
     case 'put':
-      return api.put(url, data, config);
+      return api.put(url, data, defaultConfig);
     case 'patch':
-      return api.patch(url, data, config);
+      return api.patch(url, data, defaultConfig);
     case 'delete':
-      return api.delete(url, config);
+      return api.delete(url, defaultConfig);
     default:
       throw new Error(`Unsupported method: ${method}`);
   }
