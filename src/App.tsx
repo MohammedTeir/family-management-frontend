@@ -164,11 +164,12 @@ function AppContent() {
       .catch(error => console.error('Failed to fetch maintenance status:', error));
   }, []);
 
-  // Allow root path even during maintenance
+  // Allow root and admin-auth paths even during maintenance
   if (
     maintenance &&
     (!user || (user.role !== "admin" && user.role !== "root")) &&
-    location !== "/"
+    location !== "/" &&
+    location !== "/admin-auth"
   ) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 lg:p-6">
