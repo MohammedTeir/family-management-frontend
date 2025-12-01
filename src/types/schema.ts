@@ -84,8 +84,11 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   target: varchar("target", { length: 20 }).default("all"), // 'all', 'head', 'specific'
   recipients: integer("recipients").array(),
+  read: boolean("read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  readIdx: index("notifications_read_idx").on(table.read),
+}));
 
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),

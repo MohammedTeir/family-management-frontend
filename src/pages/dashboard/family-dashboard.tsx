@@ -43,6 +43,12 @@ export default function FamilyDashboard() {
     queryKey: ["/api/notifications"],
   });
 
+  // Fetch unread notification count
+  const { data: unreadCount } = useQuery({
+    queryKey: ["/api/notifications/unread-count"],
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
   const isLoading = authLoading || familyLoading || requestsLoading || notificationsLoading;
 
   const [statusFilter, setStatusFilter] = useState('all');
@@ -76,7 +82,7 @@ export default function FamilyDashboard() {
   const storedNumFemales = family?.numFemales || 0;
 
   const pendingRequests = requests?.filter((req: any) => req.status === 'pending') || [];
-  const unreadNotifications = notifications?.slice(0, 3) || [];
+  const unreadNotifications = notifications?.filter((n: any) => !n.read)?.slice(0, 3) || [];
 
   // Filter children (under 2 years old for members)
   const memberChildren = members.filter((member: any) => isChild(member.birthDate));
@@ -173,7 +179,7 @@ export default function FamilyDashboard() {
                 <div className="mr-3 sm:mr-4">
                   <p className="text-xs sm:text-sm text-muted-foreground">تنبيهات جديدة</p>
                   <p className="text-xl sm:text-2xl font-bold text-foreground">
-                    {notifications?.length || 0}
+                    {unreadCount?.count || 0}
                   </p>
                 </div>
               </div>

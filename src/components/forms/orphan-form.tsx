@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { compressImage } from "@/lib/image-compression";
 
 const orphanSchema = z.object({
   orphanName: z.string().min(1, "اسم اليتيم مطلوب"),
@@ -33,6 +34,14 @@ const orphanSchema = z.object({
       return { message: ctx.defaultError };
     }
   }),
+  // New orphan fields
+  hasChronicIllness: z.boolean().optional(),
+  chronicIllnessType: z.string().optional(),
+  isDisabled: z.boolean().optional(),
+  disabilityType: z.string().optional(),
+  hasWarInjury: z.boolean().optional(),
+  warInjuryType: z.string().optional(),
+  // End new orphan fields
   bankAccountNumber: z.string().min(1, "رقم حساب البنك مطلوب"),
   accountHolderName: z.string().min(1, "اسم صاحب الحساب مطلوب"),
   currentAddress: z.string().min(1, "العنوان الحالي مطلوب"),
@@ -77,6 +86,12 @@ export default function OrphanForm({
       fatherID: initialData?.fatherID || "",
       martyrdomDate: initialData?.martyrdomDate || "",
       martyrdomType: initialData?.martyrdomType || "",
+      hasChronicIllness: initialData?.hasChronicIllness || false,
+      chronicIllnessType: initialData?.chronicIllnessType || "",
+      isDisabled: initialData?.isDisabled || false,
+      disabilityType: initialData?.disabilityType || "",
+      hasWarInjury: initialData?.hasWarInjury || false,
+      warInjuryType: initialData?.warInjuryType || "",
       bankAccountNumber: initialData?.bankAccountNumber || "",
       accountHolderName: initialData?.accountHolderName || "",
       currentAddress: initialData?.currentAddress || "",
@@ -294,6 +309,114 @@ export default function OrphanForm({
           )}
         </div>
 
+        {/* Orphan chronic illness fields */}
+        <div className="md:col-span-1">
+          <Label htmlFor="hasChronicIllness" className="text-sm sm:text-base font-medium">هل يعاني من مرض مزمن؟</Label>
+          <Select
+            value={form.watch("hasChronicIllness") ? "true" : "false"}
+            onValueChange={(value) => form.setValue("hasChronicIllness", value === "true")}
+            dir="rtl"
+          >
+            <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
+              <SelectValue placeholder="اختر" />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              <SelectItem value="false" className="text-sm sm:text-base">لا</SelectItem>
+              <SelectItem value="true" className="text-sm sm:text-base">نعم</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.watch("hasChronicIllness") && (
+          <div className="md:col-span-1">
+            <Label htmlFor="chronicIllnessType" className="text-sm sm:text-base font-medium">نوع المرض المزمن</Label>
+            <Input
+              id="chronicIllnessType"
+              placeholder="نوع المرض المزمن"
+              className="h-10 sm:h-11 text-sm sm:text-base mt-1 text-right"
+              dir="rtl"
+              {...form.register("chronicIllnessType")}
+            />
+            {form.formState.errors.chronicIllnessType && (
+              <p className="text-xs sm:text-sm text-destructive mt-1">
+                {form.formState.errors.chronicIllnessType.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Orphan disability fields */}
+        <div className="md:col-span-1">
+          <Label htmlFor="isDisabled" className="text-sm sm:text-base font-medium">هل يعاني من إعاقة؟</Label>
+          <Select
+            value={form.watch("isDisabled") ? "true" : "false"}
+            onValueChange={(value) => form.setValue("isDisabled", value === "true")}
+            dir="rtl"
+          >
+            <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
+              <SelectValue placeholder="اختر" />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              <SelectItem value="false" className="text-sm sm:text-base">لا</SelectItem>
+              <SelectItem value="true" className="text-sm sm:text-base">نعم</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.watch("isDisabled") && (
+          <div className="md:col-span-1">
+            <Label htmlFor="disabilityType" className="text-sm sm:text-base font-medium">نوع الإعاقة</Label>
+            <Input
+              id="disabilityType"
+              placeholder="نوع الإعاقة"
+              className="h-10 sm:h-11 text-sm sm:text-base mt-1 text-right"
+              dir="rtl"
+              {...form.register("disabilityType")}
+            />
+            {form.formState.errors.disabilityType && (
+              <p className="text-xs sm:text-sm text-destructive mt-1">
+                {form.formState.errors.disabilityType.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Orphan war injury fields */}
+        <div className="md:col-span-1">
+          <Label htmlFor="hasWarInjury" className="text-sm sm:text-base font-medium">هل يعاني من إصابة حرب؟</Label>
+          <Select
+            value={form.watch("hasWarInjury") ? "true" : "false"}
+            onValueChange={(value) => form.setValue("hasWarInjury", value === "true")}
+            dir="rtl"
+          >
+            <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
+              <SelectValue placeholder="اختر" />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              <SelectItem value="false" className="text-sm sm:text-base">لا</SelectItem>
+              <SelectItem value="true" className="text-sm sm:text-base">نعم</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.watch("hasWarInjury") && (
+          <div className="md:col-span-1">
+            <Label htmlFor="warInjuryType" className="text-sm sm:text-base font-medium">نوع إصابة الحرب</Label>
+            <Input
+              id="warInjuryType"
+              placeholder="نوع إصابة الحرب"
+              className="h-10 sm:h-11 text-sm sm:text-base mt-1 text-right"
+              dir="rtl"
+              {...form.register("warInjuryType")}
+            />
+            {form.formState.errors.warInjuryType && (
+              <p className="text-xs sm:text-sm text-destructive mt-1">
+                {form.formState.errors.warInjuryType.message}
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <Label htmlFor="bankAccountNumber" className="text-sm sm:text-base font-medium">رقم حساب البنك *</Label>
           <Input
@@ -402,21 +525,44 @@ export default function OrphanForm({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  // Create preview for the selected file immediately
-                  const previewUrl = URL.createObjectURL(file);
-                  setNewImagePreview(previewUrl);
+                  // First compress the image to reduce size
+                  compressImage(file)
+                    .then(compressedFile => {
+                      // Create preview for the compressed file
+                      const previewUrl = URL.createObjectURL(compressedFile);
+                      setNewImagePreview(previewUrl);
 
-                  // Convert image to base64 for sending to backend
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    // Set the base64 value to the form
-                    form.setValue("image", reader.result as string);
-                    // Update preview to the base64 version after FileReader completes
-                    setNewImagePreview(reader.result as string);
-                    // Clean up the blob preview URL since we're now using base64
-                    URL.revokeObjectURL(previewUrl);
-                  };
-                  reader.readAsDataURL(file);
+                      // Convert the compressed image to base64 for sending to backend
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        // Set the base64 value to the form
+                        form.setValue("image", reader.result as string);
+                        // Update preview to the base64 version after FileReader completes
+                        setNewImagePreview(reader.result as string);
+                        // Clean up the blob preview URL since we're now using base64
+                        URL.revokeObjectURL(previewUrl);
+                      };
+                      reader.readAsDataURL(compressedFile);
+                    })
+                    .catch(error => {
+                      console.error('Error compressing image:', error);
+
+                      // Fallback to original image if compression fails
+                      const previewUrl = URL.createObjectURL(file);
+                      setNewImagePreview(previewUrl);
+
+                      // Convert original image to base64 for sending to backend
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        // Set the base64 value to the form
+                        form.setValue("image", reader.result as string);
+                        // Update preview to the base64 version after FileReader completes
+                        setNewImagePreview(reader.result as string);
+                        // Clean up the blob preview URL since we're now using base64
+                        URL.revokeObjectURL(previewUrl);
+                      };
+                      reader.readAsDataURL(file);
+                    });
                 }
               }}
             />

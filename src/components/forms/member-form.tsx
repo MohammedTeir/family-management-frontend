@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 
 const memberSchema = z.object({
   fullName: z.string().min(1, "الاسم مطلوب"),
-  memberID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام").optional(), // Add memberID with validation
+  memberID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام").min(1, "رقم الهوية مطلوب"), // Add memberID with validation
   birthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
   gender: z.enum(["male", "female"], { required_error: "الجنس مطلوب" }),
   relationship: z.string().min(1, "القرابة مطلوبة"),
@@ -17,6 +17,8 @@ const memberSchema = z.object({
   disabilityType: z.string().optional(),
   hasChronicIllness: z.boolean().default(false),
   chronicIllnessType: z.string().optional(),
+  hasWarInjury: z.boolean().default(false),
+  warInjuryType: z.string().optional(),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -47,6 +49,8 @@ export default function MemberForm({
       disabilityType: "",
       hasChronicIllness: false,
       chronicIllnessType: "",
+      hasWarInjury: false,
+      warInjuryType: "",
       ...initialData,
     },
   });
@@ -61,7 +65,7 @@ export default function MemberForm({
         <Label htmlFor="fullName" className="text-sm sm:text-base font-medium">الاسم الكامل *</Label>
         <Input
           id="fullName"
-          placeholder="محمد فتح محمود أبو طير"
+          placeholder="الاسم رباعي"
           className="h-10 sm:h-11 text-sm sm:text-base mt-1"
           {...form.register("fullName")}
         />
@@ -73,10 +77,10 @@ export default function MemberForm({
       </div>
 
       <div>
-        <Label htmlFor="memberID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
+        <Label htmlFor="memberID" className="text-sm sm:text-base font-medium">رقم الهوية *</Label>
         <Input
           id="memberID"
-          placeholder="رقم الهوية (اختياري)"
+          placeholder="رقم الهوية (9 أرقام)"
           className="h-10 sm:h-11 text-sm sm:text-base mt-1"
           {...form.register("memberID")}
         />
@@ -191,6 +195,27 @@ export default function MemberForm({
             placeholder="اذكر نوع المرض المزمن"
             className="h-10 sm:h-11 text-sm sm:text-base mt-1"
             {...form.register("chronicIllnessType")}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center space-x-2 space-x-reverse py-1">
+        <Switch
+          id="hasWarInjury"
+          checked={form.watch("hasWarInjury")}
+          onCheckedChange={(checked) => form.setValue("hasWarInjury", checked)}
+        />
+        <Label htmlFor="hasWarInjury" className="text-sm sm:text-base font-medium">يعاني من إصابة حرب</Label>
+      </div>
+
+      {form.watch("hasWarInjury") && (
+        <div>
+          <Label htmlFor="warInjuryType" className="text-sm sm:text-base font-medium">نوع إصابة الحرب</Label>
+          <Input
+            id="warInjuryType"
+            placeholder="اذكر نوع إصابة الحرب"
+            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
+            {...form.register("warInjuryType")}
           />
         </div>
       )}

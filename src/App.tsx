@@ -14,6 +14,7 @@ import { SettingsProvider, useSettingsContext } from "./contexts/SettingsContext
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
+import AdminAuthPage from "@/pages/admin-auth";
 
 // 🚀 PERFORMANCE: Lazy load all other pages to reduce initial bundle size
 const FamilyDashboard = lazy(() => import("@/pages/dashboard/family-dashboard"));
@@ -55,8 +56,9 @@ function Router() {
   return (
     <Switch>
       {/* Static routes - no Suspense needed */}
-      <ProtectedRoute path="/" component={HomePage} roles={['admin', 'root', 'head']} />
-      <Route path="/auth" component={AuthPage} />
+      <Route path="/" component={AuthPage} />
+      <ProtectedRoute path="/home" component={HomePage} roles={['admin', 'root', 'head']} />
+      <Route path="/admin-auth" component={AdminAuthPage} />
       
       {/* Lazy-loaded routes wrapped in Suspense */}
       <Suspense fallback={<RouteLoading />}>
@@ -162,11 +164,11 @@ function AppContent() {
       .catch(error => console.error('Failed to fetch maintenance status:', error));
   }, []);
 
-  // Allow /auth route even during maintenance
+  // Allow root path even during maintenance
   if (
     maintenance &&
     (!user || (user.role !== "admin" && user.role !== "root")) &&
-    location !== "/auth"
+    location !== "/"
   ) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 lg:p-6">

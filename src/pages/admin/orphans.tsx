@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { calculateAge, getGenderInArabic, getRelationshipInArabic, calculateDetailedAge } from "@/lib/utils";
+import { compressImage } from "@/lib/image-compression";
 import { Separator } from "@radix-ui/react-separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ExcelJS from 'exceljs';
@@ -68,6 +69,12 @@ export default function AdminOrphans() {
     { key: 'fatherName', label: 'اسم الاب', checked: true },
     { key: 'fatherID', label: 'رقم الهوية', checked: true },
     { key: 'martyrdomDate', label: 'تاريخ الاستشهاد', checked: true },
+    { key: 'hasChronicIllness', label: 'هل يعاني من مرض مزمن؟', checked: true },
+    { key: 'chronicIllnessType', label: 'نوع المرض المزمن', checked: true },
+    { key: 'isDisabled', label: 'هل يعاني من إعاقة؟', checked: true },
+    { key: 'disabilityType', label: 'نوع الإعاقة', checked: true },
+    { key: 'hasWarInjury', label: 'هل يعاني من إصابة حرب؟', checked: true },
+    { key: 'warInjuryType', label: 'نوع إصابة الحرب', checked: true },
     { key: 'bankAccountNumber', label: 'رقم حساب البنك', checked: true },
     { key: 'accountHolderName', label: 'اسم صاحب الحساب', checked: true },
     { key: 'currentAddress', label: 'العنوان الحالي', checked: true },
@@ -445,6 +452,12 @@ export default function AdminOrphans() {
             case 'fatherName': return orphan.fatherName || '';
             case 'fatherID': return orphan.fatherID || '';
             case 'martyrdomDate': return orphan.martyrdomDate || '';
+            case 'hasChronicIllness': return orphan.hasChronicIllness ? 'نعم' : 'لا';
+            case 'chronicIllnessType': return orphan.chronicIllnessType || '';
+            case 'isDisabled': return orphan.isDisabled ? 'نعم' : 'لا';
+            case 'disabilityType': return orphan.disabilityType || '';
+            case 'hasWarInjury': return orphan.hasWarInjury ? 'نعم' : 'لا';
+            case 'warInjuryType': return orphan.warInjuryType || '';
             case 'bankAccountNumber': return orphan.bankAccountNumber || '';
             case 'accountHolderName': return orphan.accountHolderName || '';
             case 'currentAddress': return orphan.currentAddress || '';
@@ -1457,6 +1470,90 @@ export default function AdminOrphans() {
                         dir="rtl"
                       />
                     </div>
+
+                    {/* Orphan chronic illness fields */}
+                    <div className="md:col-span-1">
+                      <Label htmlFor="hasChronicIllness" className="text-sm font-medium">هل يعاني من مرض مزمن؟</Label>
+                      <select
+                        id="hasChronicIllness"
+                        value={editingOrphan.hasChronicIllness ? "true" : "false"}
+                        onChange={(e) => setEditingOrphan({...editingOrphan, hasChronicIllness: e.target.value === "true"})}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 mt-1 text-right"
+                        dir="rtl"
+                      >
+                        <option value="false">لا</option>
+                        <option value="true">نعم</option>
+                      </select>
+                    </div>
+
+                    {editingOrphan.hasChronicIllness && (
+                      <div className="md:col-span-1">
+                        <Label htmlFor="chronicIllnessType" className="text-sm font-medium">نوع المرض المزمن</Label>
+                        <Input
+                          id="chronicIllnessType"
+                          value={editingOrphan.chronicIllnessType || ""}
+                          onChange={(e) => setEditingOrphan({...editingOrphan, chronicIllnessType: e.target.value})}
+                          className="mt-1 text-right"
+                          dir="rtl"
+                        />
+                      </div>
+                    )}
+
+                    {/* Orphan disability fields */}
+                    <div className="md:col-span-1">
+                      <Label htmlFor="isDisabled" className="text-sm font-medium">هل يعاني من إعاقة؟</Label>
+                      <select
+                        id="isDisabled"
+                        value={editingOrphan.isDisabled ? "true" : "false"}
+                        onChange={(e) => setEditingOrphan({...editingOrphan, isDisabled: e.target.value === "true"})}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 mt-1 text-right"
+                        dir="rtl"
+                      >
+                        <option value="false">لا</option>
+                        <option value="true">نعم</option>
+                      </select>
+                    </div>
+
+                    {editingOrphan.isDisabled && (
+                      <div className="md:col-span-1">
+                        <Label htmlFor="disabilityType" className="text-sm font-medium">نوع الإعاقة</Label>
+                        <Input
+                          id="disabilityType"
+                          value={editingOrphan.disabilityType || ""}
+                          onChange={(e) => setEditingOrphan({...editingOrphan, disabilityType: e.target.value})}
+                          className="mt-1 text-right"
+                          dir="rtl"
+                        />
+                      </div>
+                    )}
+
+                    {/* Orphan war injury fields */}
+                    <div className="md:col-span-1">
+                      <Label htmlFor="hasWarInjury" className="text-sm font-medium">هل يعاني من إصابة حرب؟</Label>
+                      <select
+                        id="hasWarInjury"
+                        value={editingOrphan.hasWarInjury ? "true" : "false"}
+                        onChange={(e) => setEditingOrphan({...editingOrphan, hasWarInjury: e.target.value === "true"})}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 mt-1 text-right"
+                        dir="rtl"
+                      >
+                        <option value="false">لا</option>
+                        <option value="true">نعم</option>
+                      </select>
+                    </div>
+
+                    {editingOrphan.hasWarInjury && (
+                      <div className="md:col-span-1">
+                        <Label htmlFor="warInjuryType" className="text-sm font-medium">نوع إصابة الحرب</Label>
+                        <Input
+                          id="warInjuryType"
+                          value={editingOrphan.warInjuryType || ""}
+                          onChange={(e) => setEditingOrphan({...editingOrphan, warInjuryType: e.target.value})}
+                          className="mt-1 text-right"
+                          dir="rtl"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1472,16 +1569,35 @@ export default function AdminOrphans() {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              // Create preview for the selected file
-                              const previewUrl = URL.createObjectURL(file);
-                              setNewImagePreview(previewUrl);
+                              // First compress the image to reduce size
+                              compressImage(file)
+                                .then(compressedFile => {
+                                  // Create preview for the compressed file
+                                  const previewUrl = URL.createObjectURL(compressedFile);
+                                  setNewImagePreview(previewUrl);
 
-                              // Convert image to base64 for sending to backend
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setEditingOrphan({...editingOrphan, image: reader.result as string});
-                              };
-                              reader.readAsDataURL(file);
+                                  // Convert the compressed image to base64 for sending to backend
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    setEditingOrphan({...editingOrphan, image: reader.result as string});
+                                  };
+                                  reader.readAsDataURL(compressedFile);
+                                })
+                                .catch(error => {
+                                  console.error('Error compressing image:', error);
+
+                                  // Fallback to original image if compression fails
+                                  // Create preview for the original file
+                                  const previewUrl = URL.createObjectURL(file);
+                                  setNewImagePreview(previewUrl);
+
+                                  // Convert original image to base64 for sending to backend
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    setEditingOrphan({...editingOrphan, image: reader.result as string});
+                                  };
+                                  reader.readAsDataURL(file);
+                                });
                             }
                           }}
                         />
@@ -1676,6 +1792,42 @@ export default function AdminOrphans() {
                       <Label className="text-sm font-medium">رقم الجوال الاحتياطي</Label>
                       <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.backupMobileNumber || 'غير محدد'}</p>
                     </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">هل يعاني من مرض مزمن؟</Label>
+                      <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.hasChronicIllness ? 'نعم' : 'لا'}</p>
+                    </div>
+
+                    {viewingOrphan.hasChronicIllness && (
+                      <div>
+                        <Label className="text-sm font-medium">نوع المرض المزمن</Label>
+                        <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.chronicIllnessType || 'غير محدد'}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label className="text-sm font-medium">هل يعاني من إعاقة؟</Label>
+                      <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.isDisabled ? 'نعم' : 'لا'}</p>
+                    </div>
+
+                    {viewingOrphan.isDisabled && (
+                      <div>
+                        <Label className="text-sm font-medium">نوع الإعاقة</Label>
+                        <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.disabilityType || 'غير محدد'}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label className="text-sm font-medium">هل يعاني من إصابة حرب؟</Label>
+                      <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.hasWarInjury ? 'نعم' : 'لا'}</p>
+                    </div>
+
+                    {viewingOrphan.hasWarInjury && (
+                      <div>
+                        <Label className="text-sm font-medium">نوع إصابة الحرب</Label>
+                        <p className="mt-1 p-2 bg-muted rounded text-sm">{viewingOrphan.warInjuryType || 'غير محدد'}</p>
+                      </div>
+                    )}
 
                     <div>
                       <Label className="text-sm font-medium">العائلة</Label>

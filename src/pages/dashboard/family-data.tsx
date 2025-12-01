@@ -65,6 +65,12 @@ const familySchema = z.object({
   // Disability for spouse
   spouseHasDisability: z.boolean().default(false),
   spouseDisabilityType: z.string({ invalid_type_error: "نوع إعاقة الزوج/ة يجب أن يكون نص" }).nullable().optional(),
+  // War injury for head of household
+  hasWarInjury: z.boolean().default(false),
+  warInjuryType: z.string({ invalid_type_error: "نوع إصابة الحرب يجب أن يكون نص" }).nullable().optional(),
+  // War injury for spouse
+  spouseHasWarInjury: z.boolean().default(false),
+  spouseWarInjuryType: z.string({ invalid_type_error: "نوع إصابة الحرب للزوج/ة يجب أن يكون نص" }).nullable().optional(),
   headGender: z.enum(['male', 'female']).optional(),
 }).refine((data) => {
   // If head is female (wife), then husband (spouse) is mandatory
@@ -112,6 +118,8 @@ export default function FamilyData() {
             spouseAsHusbandChronicIllnessType: data.spouse.husbandChronicIllnessType || data.spouse.wifeChronicIllnessType,
             spouseAsHusbandHasDisability: data.spouse.husbandHasDisability || data.spouse.wifeHasDisability,
             spouseAsHusbandDisabilityType: data.spouse.husbandDisabilityType || data.spouse.wifeDisabilityType,
+            spouseAsHusbandHasWarInjury: data.spouse.husbandHasWarInjury || data.spouse.wifeHasWarInjury,
+            spouseAsHusbandWarInjuryType: data.spouse.husbandWarInjuryType || data.spouse.wifeWarInjuryType,
           } : {
             spouseAsWifeName: data.spouse.wifeName,
             spouseAsWifeID: data.spouse.wifeID,
@@ -122,6 +130,8 @@ export default function FamilyData() {
             spouseAsWifeChronicIllnessType: data.spouse.wifeChronicIllnessType,
             spouseAsWifeHasDisability: data.spouse.wifeHasDisability,
             spouseAsWifeDisabilityType: data.spouse.wifeDisabilityType,
+            spouseAsWifeHasWarInjury: data.spouse.wifeHasWarInjury,
+            spouseAsWifeWarInjuryType: data.spouse.wifeWarInjuryType,
           }),
         } : (data.wifeName ? { // Fallback: if no spouse object but raw spouse fields exist
           ...((headGender === 'female') ? {
@@ -134,6 +144,8 @@ export default function FamilyData() {
             spouseAsHusbandChronicIllnessType: data.wifeChronicIllnessType,
             spouseAsHusbandHasDisability: data.wifeHasDisability,
             spouseAsHusbandDisabilityType: data.wifeDisabilityType,
+            spouseAsHusbandHasWarInjury: data.wifeHasWarInjury,
+            spouseAsHusbandWarInjuryType: data.wifeWarInjuryType,
           } : {
             spouseAsWifeName: data.wifeName,
             spouseAsWifeID: data.wifeID,
@@ -144,6 +156,8 @@ export default function FamilyData() {
             spouseAsWifeChronicIllnessType: data.wifeChronicIllnessType,
             spouseAsWifeHasDisability: data.wifeHasDisability,
             spouseAsWifeDisabilityType: data.wifeDisabilityType,
+            spouseAsWifeHasWarInjury: data.wifeHasWarInjury,
+            spouseAsWifeWarInjuryType: data.wifeWarInjuryType,
           }),
         } : {})),
         headGender, // Add head gender for UI logic
@@ -188,6 +202,10 @@ export default function FamilyData() {
       disabilityType: "",
       spouseHasDisability: false,
       spouseDisabilityType: "",
+      hasWarInjury: false,
+      warInjuryType: "",
+      spouseHasWarInjury: false,
+      spouseWarInjuryType: "",
       headGender: "male", // Default value
     },
   });
@@ -221,6 +239,9 @@ export default function FamilyData() {
         spouseChronicIllnessType: (headGender === 'female' ? family.spouseAsHusbandChronicIllnessType : family.spouseAsWifeChronicIllnessType) || "",
         spouseHasDisability: (headGender === 'female' ? family.spouseAsHusbandHasDisability : family.spouseAsWifeHasDisability) || false,
         spouseDisabilityType: (headGender === 'female' ? family.spouseAsHusbandDisabilityType : family.spouseAsWifeDisabilityType) || "",
+        // War injury for spouse
+        spouseHasWarInjury: (headGender === 'female' ? family.spouseAsHusbandHasWarInjury : family.spouseAsWifeHasWarInjury) || false,
+        spouseWarInjuryType: (headGender === 'female' ? family.spouseAsHusbandWarInjuryType : family.spouseAsWifeWarInjuryType) || "",
         // Other fields
         socialStatus: family.socialStatus || "",
         branch: family.branch || "",
@@ -229,6 +250,8 @@ export default function FamilyData() {
         chronicIllnessType: family.chronicIllnessType || "",
         hasDisability: family.hasDisability || false,
         disabilityType: family.disabilityType || "",
+        hasWarInjury: family.hasWarInjury || false,
+        warInjuryType: family.warInjuryType || "",
       };
 
       form.reset(formData);
@@ -342,6 +365,8 @@ export default function FamilyData() {
       spouseChronicIllnessType: data.spouseChronicIllnessType || "", // Send empty string to backend to clear value
       disabilityType: data.disabilityType || "",        // Send empty string to backend to clear value
       spouseDisabilityType: data.spouseDisabilityType || "", // Send empty string to backend to clear value
+      warInjuryType: data.warInjuryType || "",          // Send empty string to backend to clear value
+      spouseWarInjuryType: data.spouseWarInjuryType || "", // Send empty string to backend to clear value
     };
 
     // Map form fields back to backend format
@@ -363,6 +388,11 @@ export default function FamilyData() {
       wifeChronicIllnessType: cleanedData.spouseChronicIllnessType || null,
       wifeHasDisability: cleanedData.spouseHasDisability || false,
       wifeDisabilityType: cleanedData.spouseDisabilityType || null,
+      wifeHasWarInjury: cleanedData.spouseHasWarInjury || false,
+      wifeWarInjuryType: cleanedData.spouseWarInjuryType || null,
+      // Head of household war injury fields
+      hasWarInjury: cleanedData.hasWarInjury || false,
+      warInjuryType: cleanedData.warInjuryType || null,
       // Remove form-specific field names that aren't expected by backend
       spouseName: undefined,
       spouseID: undefined,
@@ -373,6 +403,8 @@ export default function FamilyData() {
       spouseChronicIllnessType: undefined,
       spouseHasDisability: undefined,
       spouseDisabilityType: undefined,
+      spouseHasWarInjury: undefined,
+      spouseWarInjuryType: undefined,
     };
 
     // Safeguard: Ensure we don't send empty values for existing family
@@ -644,6 +676,18 @@ export default function FamilyData() {
                         <Label htmlFor="hasDisability" className="cursor-pointer">يعاني من إعاقة</Label>
                       </div>
                     </div>
+
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="hasWarInjury"
+                          disabled={!isEditing}
+                          checked={form.watch("hasWarInjury")}
+                          onCheckedChange={(checked) => form.setValue("hasWarInjury", checked)}
+                        />
+                        <Label htmlFor="hasWarInjury" className="cursor-pointer">يعاني من إصابة حرب</Label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -667,6 +711,18 @@ export default function FamilyData() {
                       placeholder="اذكر نوع الإعاقة"
                       disabled={!isEditing}
                       {...form.register("disabilityType")}
+                    />
+                  </div>
+                )}
+
+                {form.watch("hasWarInjury") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="warInjuryType">نوع إصابة الحرب</Label>
+                    <Input
+                      id="warInjuryType"
+                      placeholder="اذكر نوع إصابة الحرب"
+                      disabled={!isEditing}
+                      {...form.register("warInjuryType")}
                     />
                   </div>
                 )}
@@ -776,6 +832,18 @@ export default function FamilyData() {
                       </div>
                     </div>
 
+                    <div className="rounded-md border border-input p-3">
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <Switch
+                          id="spouseHasWarInjury"
+                          disabled={!isEditing}
+                          checked={form.watch("spouseHasWarInjury")}
+                          onCheckedChange={(checked) => form.setValue("spouseHasWarInjury", checked)}
+                        />
+                        <Label htmlFor="spouseHasWarInjury" className="cursor-pointer">{form.watch("headGender") === "female" ? "يعاني من إصابة حرب" : "تعاني من إصابة حرب"}</Label>
+                      </div>
+                    </div>
+
                     {(form.watch("headGender") || family?.headGender || "male") === "male" && ( // Show pregnancy field when head is male (so spouse could be pregnant)
                     <div className="rounded-md border border-input p-3">
                       <div className="flex items-center space-x-2 space-x-reverse">
@@ -812,6 +880,18 @@ export default function FamilyData() {
                       placeholder="اذكر نوع الإعاقة"
                       disabled={!isEditing}
                       {...form.register("spouseDisabilityType")}
+                    />
+                  </div>
+                )}
+
+                {form.watch("spouseHasWarInjury") && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="spouseWarInjuryType">{form.watch("headGender") === "female" ? "نوع إصابة الحرب للزوج" : "نوع إصابة الحرب للزوجة"}</Label>
+                    <Input
+                      id="spouseWarInjuryType"
+                      placeholder="اذكر نوع إصابة الحرب"
+                      disabled={!isEditing}
+                      {...form.register("spouseWarInjuryType")}
                     />
                   </div>
                 )}

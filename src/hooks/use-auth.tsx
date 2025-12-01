@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], null);
       queryClient.setQueryData(["/api/family"], null);
       queryClient.clear(); // Clear all cached data
-      setLocation("/auth");
+      setLocation("/");
     },
     onError: (error: Error) => {
       // Clear token even if logout request fails
@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], null);
       queryClient.setQueryData(["/api/family"], null);
       queryClient.clear();
-      setLocation("/auth");
+      setLocation("/");
       
       toast({
         title: "Logout failed",

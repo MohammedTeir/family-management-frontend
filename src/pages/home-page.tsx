@@ -20,7 +20,7 @@ export default function HomePage() {
   }
 
   if (!user) {
-    return <Redirect to="/auth" />;
+    return <Redirect to="/" />;
   }
 
   // Redirect based on user role

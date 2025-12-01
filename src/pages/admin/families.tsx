@@ -301,28 +301,48 @@ const AdminFamilies = memo(function AdminFamilies() {
   }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax]);
 
   // 🚀 PERFORMANCE: Memoize expensive max counts calculation
-  const { maxSons, maxChildren, maxWives } = useMemo(() => {
+  const { maxSons, maxChildren, maxWives, maxOrphans } = useMemo(() => {
     const safeFamilies = Array.isArray(filteredFamilies) ? filteredFamilies : [];
-    
+
     if (safeFamilies.length === 0) {
-      return { maxSons: 0, maxChildren: 0, maxWives: 0 };
+      return { maxSons: 0, maxChildren: 0, maxWives: 0, maxOrphans: 0 };
     }
-    
-    let maxS = 0, maxC = 0, maxW = 0;
-    
+
+    let maxS = 0, maxC = 0, maxW = 0, maxO = 0;
+
     // Single pass through families for better performance
     safeFamilies.forEach(family => {
       const members = Array.isArray(family.members) ? family.members : [];
-      const sons = members.filter((m: any) => !isChild(m.birthDate)).length;
-      const children = members.filter((m: any) => isChild(m.birthDate)).length;
+      // Include orphans in the calculation for son/children max counts
+      const orphans = Array.isArray(family.orphans) ? family.orphans : [];
+      // Convert orphans to member-like structure to calculate with same logic
+      const allMembers = [...members];
+      if (Array.isArray(orphans)) {
+        const orphansAsMembers = orphans.map(orph => ({
+          ...orph,
+          fullName: orph.orphanName || orph.fullName,
+          memberID: orph.orphanID || orph.memberID,
+          birthDate: orph.orphanBirthDate || orph.birthDate,
+          isDisabled: orph.isDisabled || orph.orphanIsDisabled,
+          disabilityType: orph.disabilityType || orph.orphanDisabilityType,
+          hasChronicIllness: orph.hasChronicIllness || orph.orphanHasChronicIllness,
+          chronicIllnessType: orph.chronicIllnessType || orph.orphanChronicIllnessType,
+          hasWarInjury: orph.hasWarInjury || orph.orphanHasWarInjury,
+          warInjuryType: orph.warInjuryType || orph.orphanWarInjuryType,
+        }));
+        allMembers.push(...orphansAsMembers);
+      }
+      const sons = allMembers.filter((m: any) => !isChild(m.birthDate)).length;
+      const children = allMembers.filter((m: any) => isChild(m.birthDate)).length;
       const wives = family.wife ? 1 : (family.wifeName ? 1 : 0);
-      
+
       if (sons > maxS) maxS = sons;
       if (children > maxC) maxC = children;
       if (wives > maxW) maxW = wives;
+      if (orphans.length > maxO) maxO = orphans.length;
     });
-    
-    return { maxSons: maxS, maxChildren: maxC, maxWives: maxW };
+
+    return { maxSons: maxS, maxChildren: maxC, maxWives: maxW, maxOrphans: maxO };
   }, [filteredFamilies]);
 
   // 🚀 PERFORMANCE: Memoize expensive Excel columns generation
@@ -336,6 +356,8 @@ const AdminFamilies = memo(function AdminFamilies() {
     { key: 'chronicIllnessType', label: 'نوع مرض رب الأسرة المزمن', checked: true },
     { key: 'hasDisability', label: 'هل يعاني رب الأسرة من إعاقة', checked: true },
     { key: 'disabilityType', label: 'نوع إعاقة رب الأسرة', checked: true },
+    { key: 'hasWarInjury', label: 'هل يعاني رب الأسرة من إصابة حرب', checked: true },
+    { key: 'warInjuryType', label: 'نوع إصابة حرب رب الأسرة', checked: true },
     // Wife columns (individual wife fields)
     ...(maxWives > 0 ? [
       { key: 'wifeName', label: 'اسم الزوج/ة رباعي', checked: true },
@@ -348,6 +370,8 @@ const AdminFamilies = memo(function AdminFamilies() {
       { key: 'wifeChronicIllnessType', label: 'نوع مرض الزوج/ة المزمن', checked: true },
       { key: 'wifeHasDisability', label: 'هل يعاني/تعاني الزوج/ة من إعاقة', checked: true },
       { key: 'wifeDisabilityType', label: 'نوع إعاقة الزوج/ة', checked: true },
+      { key: 'wifeHasWarInjury', label: 'هل يعاني/تعاني الزوج/ة من إصابة حرب', checked: true },
+      { key: 'wifeWarInjuryType', label: 'نوع إصابة حرب الزوج/ة', checked: true },
     ] : []),
     { key: 'primaryPhone', label: 'رقم الجوال للتواصل', checked: true },
     { key: 'secondaryPhone', label: 'رقم الجوال البديل', checked: true },
@@ -368,12 +392,24 @@ const AdminFamilies = memo(function AdminFamilies() {
       { key: `sonName${i+1}`, label: `اسم الابن ${i+1}`, checked: true },
       { key: `sonID${i+1}`, label: `رقم هوية الابن ${i+1}`, checked: true },
       { key: `sonBirthDate${i+1}`, label: `تاريخ الميلاد`, checked: true },
+      { key: `sonIsDisabled${i+1}`, label: `هل الابن ${i+1} معاق`, checked: true },
+      { key: `sonDisabilityType${i+1}`, label: `نوع إعاقة الابن ${i+1}`, checked: true },
+      { key: `sonHasChronicIllness${i+1}`, label: `هل الابن ${i+1} يعاني من مرض مزمن`, checked: true },
+      { key: `sonChronicIllnessType${i+1}`, label: `نوع مرض الابن ${i+1} المزمن`, checked: true },
+      { key: `sonHasWarInjury${i+1}`, label: `هل الابن ${i+1} يعاني من إصابة حرب`, checked: true },
+      { key: `sonWarInjuryType${i+1}`, label: `نوع إصابة حرب الابن ${i+1}`, checked: true },
     ]) : []),
     // Children columns (dynamic, only if maxChildren > 0)
     ...(maxChildren > 0 ? Array.from({length: maxChildren}).flatMap((_, i) => [
       { key: `childName${i+1}`, label: `اسم الطفل رباعي ${i+1}`, checked: true },
       { key: `childID${i+1}`, label: `رقم هوية الطفل ${i+1}`, checked: true },
       { key: `childBirthDate${i+1}`, label: `تاريخ الميلاد`, checked: true },
+      { key: `childIsDisabled${i+1}`, label: `هل الطفل ${i+1} معاق`, checked: true },
+      { key: `childDisabilityType${i+1}`, label: `نوع إعاقة الطفل ${i+1}`, checked: true },
+      { key: `childHasChronicIllness${i+1}`, label: `هل الطفل ${i+1} يعاني من مرض مزمن`, checked: true },
+      { key: `childChronicIllnessType${i+1}`, label: `نوع مرض الطفل ${i+1} المزمن`, checked: true },
+      { key: `childHasWarInjury${i+1}`, label: `هل الطفل ${i+1} يعاني من إصابة حرب`, checked: true },
+      { key: `childWarInjuryType${i+1}`, label: `نوع إصابة حرب الطفل ${i+1}`, checked: true },
     ]) : []),
     { key: 'hasChildrenAboveTwo', label: 'هل لديك ابناء أكبر من سنتين', checked: true },
     { key: 'numMales', label: 'عدد الافراد الذكور', checked: true },
@@ -381,7 +417,7 @@ const AdminFamilies = memo(function AdminFamilies() {
     { key: 'socialStatus', label: 'الحالة الاجتماعية لرب الاسرة', checked: true },
     { key: 'abroadLocation', label: 'اسم الدولة إذا كنت مغترب خارج البلاد', checked: true },
     { key: 'adminNotes', label: 'ملاحظات إدارية', checked: true },
-  ], [maxSons, maxChildren, maxWives]);
+  ], [maxSons, maxChildren, maxWives, maxOrphans]);
 
   const [checkedColumns, setCheckedColumns] = useState<{ [key: string]: boolean }>({});
 
@@ -485,17 +521,45 @@ const AdminFamilies = memo(function AdminFamilies() {
       // Data rows
       (Array.isArray(filteredFamilies) ? filteredFamilies : []).forEach(family => {
         const members: any[] = Array.isArray(family?.members) ? family.members : [];
-        // Debug: log members, sons, and children to console
+        const orphans: any[] = Array.isArray(family?.orphans) ? family.orphans : [];
+        // Combine members and orphans for export purposes
+        // Convert orphans to the same structure as members for proper export
+        const allMembers = [...members];
+
+        // Add orphans to the allMembers array with appropriate field mapping
+        if (Array.isArray(orphans)) {
+          const orphansAsMembers = orphans.map(orph => ({
+            ...orph,
+            // Map orphan fields to member fields for consistent processing
+            fullName: orph.orphanName || orph.fullName,
+            memberID: orph.orphanID || orph.memberID,
+            birthDate: orph.orphanBirthDate || orph.birthDate,
+            isDisabled: orph.isDisabled || orph.orphanIsDisabled,
+            disabilityType: orph.disabilityType || orph.orphanDisabilityType,
+            hasChronicIllness: orph.hasChronicIllness || orph.orphanHasChronicIllness,
+            chronicIllnessType: orph.chronicIllnessType || orph.orphanChronicIllnessType,
+            hasWarInjury: orph.hasWarInjury || orph.orphanHasWarInjury,
+            warInjuryType: orph.warInjuryType || orph.orphanWarInjuryType,
+            // Keep original orphan fields for reference if needed
+            isOrphan: true
+          }));
+          allMembers.push(...orphansAsMembers);
+        }
+
+        // Debug: log members, sons, children, and orphans to console
         console.log('Exporting family:', {
           id: family.id,
           husbandName: family.husbandName,
           members,
-          sons: members.filter((m: any) => !isChild(m.birthDate)).map((s: any) => ({ fullName: s.fullName, birthDate: s.birthDate })),
-          children: members.filter((m: any) => isChild(m.birthDate)).map((c: any) => ({ fullName: c.fullName, birthDate: c.birthDate })),
+          orphans,
+          allMembers, // This now includes orphans
+          sons: allMembers.filter((m: any) => !isChild(m.birthDate)).map((s: any) => ({ fullName: s.fullName, birthDate: s.birthDate })),
+          children: allMembers.filter((m: any) => isChild(m.birthDate)).map((c: any) => ({ fullName: c.fullName, birthDate: c.birthDate })),
         });
+
         // Use isChild for children, !isChild for sons (age-based only)
-        const children: any[] = Array.isArray(members) ? members.filter((member: any) => isChild(member.birthDate)) : [];
-        const sons: any[] = Array.isArray(members) ? members.filter((member: any) => !isChild(member.birthDate)) : [];
+        const children: any[] = Array.isArray(allMembers) ? allMembers.filter((member: any) => isChild(member.birthDate)) : [];
+        const sons: any[] = Array.isArray(allMembers) ? allMembers.filter((member: any) => !isChild(member.birthDate)) : [];
         const wives: any[] = family.wife ? [family.wife] : (family.wifeName ? [{
           wifeName: family.wifeName,
           wifeID: family.wifeID,
@@ -505,12 +569,15 @@ const AdminFamilies = memo(function AdminFamilies() {
           wifeHasChronicIllness: family.wifeHasChronicIllness,
           wifeChronicIllnessType: family.wifeChronicIllnessType,
           wifeHasDisability: family.wifeHasDisability,
-          wifeDisabilityType: family.wifeDisabilityType
+          wifeDisabilityType: family.wifeDisabilityType,
+          wifeHasWarInjury: family.wifeHasWarInjury,
+          wifeWarInjuryType: family.wifeWarInjuryType
         }] : []);
         const sonsData: (any|null)[] = Array.isArray(sons) ? Array.from({length: maxSons}).map((_, i) => sons[i] || null) : [];
         const childrenData: (any|null)[] = Array.isArray(children) ? Array.from({length: maxChildren}).map((_, i) => children[i] || null) : [];
+        const orphansData: (any|null)[] = Array.isArray(orphans) ? Array.from({length: maxOrphans}).map((_, i) => orphans[i] || null) : [];
         const wivesData: (any|null)[] = wives.length > 0 ? [wives[0]] : [null];
-        const disabledMembers: any[] = Array.isArray(members) ? members.filter((m: any) => m.isDisabled) : [];
+        const disabledMembers: any[] = Array.isArray(allMembers) ? allMembers.filter((m: any) => m.isDisabled) : [];
         const disabilityTypes = Array.isArray(disabledMembers) ? disabledMembers.map((m: any) => m.disabilityType || '').filter(Boolean).join(', ') : '';
         const rowData = Array.isArray(selectedCols) ? selectedCols.map(col => {
           // Wife data export (single wife)
@@ -545,6 +612,12 @@ const AdminFamilies = memo(function AdminFamilies() {
           if (col.key === 'wifeDisabilityType') {
             return wives.length > 0 ? (wives[0].wifeDisabilityType || '') : '';
           }
+          if (col.key === 'wifeHasWarInjury') {
+            return wives.length > 0 ? (wives[0].wifeHasWarInjury ? 'نعم' : 'لا') : '';
+          }
+          if (col.key === 'wifeWarInjuryType') {
+            return wives.length > 0 ? (wives[0].wifeWarInjuryType || '') : '';
+          }
           // Dynamic sons/children export
           // Sons: sonNameX, sonIDX, sonBirthDateX
           const sonNameMatch = typeof col.key === 'string' ? col.key.match(/^sonName(\d+)$/) : null;
@@ -555,11 +628,11 @@ const AdminFamilies = memo(function AdminFamilies() {
             if (Array.isArray(sons) && sons[idx]) {
               const son = sons[idx];
               let name = son.fullName || '';
-              if (son.isDisabled) {
-                name += ` (إعاقة: ${son.disabilityType || 'محدد'})`;
-              }
-              if (son.hasChronicIllness) {
-                name += ` (مرض مزمن: ${son.chronicIllnessType || 'محدد'})`;
+              // Add (يتيم) next to orphan names if this person is an orphan
+              if (son.isOrphan) {
+                // Use 'يتيم' for males and 'يتيمة' for females, default to 'يتيم'
+                const orphanText = son.gender === 'female' ? ' (يتيمة)' : ' (يتيم)';
+                name += orphanText;
               }
               return name;
             }
@@ -573,6 +646,37 @@ const AdminFamilies = memo(function AdminFamilies() {
             const idx = parseInt(sonBirthDateMatch[1], 10) - 1;
             return Array.isArray(sons) && sons[idx] ? sons[idx].birthDate || '' : '';
           }
+          // Sons: sonIsDisabledX, sonDisabilityTypeX, sonHasChronicIllnessX, sonChronicIllnessTypeX, sonHasWarInjuryX, sonWarInjuryTypeX
+          const sonIsDisabledMatch = typeof col.key === 'string' ? col.key.match(/^sonIsDisabled(\d+)$/) : null;
+          const sonDisabilityTypeMatch = typeof col.key === 'string' ? col.key.match(/^sonDisabilityType(\d+)$/) : null;
+          const sonHasChronicIllnessMatch = typeof col.key === 'string' ? col.key.match(/^sonHasChronicIllness(\d+)$/) : null;
+          const sonChronicIllnessTypeMatch = typeof col.key === 'string' ? col.key.match(/^sonChronicIllnessType(\d+)$/) : null;
+          const sonHasWarInjuryMatch = typeof col.key === 'string' ? col.key.match(/^sonHasWarInjury(\d+)$/) : null;
+          const sonWarInjuryTypeMatch = typeof col.key === 'string' ? col.key.match(/^sonWarInjuryType(\d+)$/) : null;
+          if (sonIsDisabledMatch) {
+            const idx = parseInt(sonIsDisabledMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].isDisabled ? 'نعم' : 'لا') : '';
+          }
+          if (sonDisabilityTypeMatch) {
+            const idx = parseInt(sonDisabilityTypeMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].disabilityType || '') : '';
+          }
+          if (sonHasChronicIllnessMatch) {
+            const idx = parseInt(sonHasChronicIllnessMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].hasChronicIllness ? 'نعم' : 'لا') : '';
+          }
+          if (sonChronicIllnessTypeMatch) {
+            const idx = parseInt(sonChronicIllnessTypeMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].chronicIllnessType || '') : '';
+          }
+          if (sonHasWarInjuryMatch) {
+            const idx = parseInt(sonHasWarInjuryMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].hasWarInjury ? 'نعم' : 'لا') : '';
+          }
+          if (sonWarInjuryTypeMatch) {
+            const idx = parseInt(sonWarInjuryTypeMatch[1], 10) - 1;
+            return Array.isArray(sons) && sons[idx] ? (sons[idx].warInjuryType || '') : '';
+          }
           // Children: childNameX, childIDX, childBirthDateX
           const childNameMatch = typeof col.key === 'string' ? col.key.match(/^childName(\d+)$/) : null;
           const childIDMatch = typeof col.key === 'string' ? col.key.match(/^childID(\d+)$/) : null;
@@ -582,11 +686,11 @@ const AdminFamilies = memo(function AdminFamilies() {
             if (Array.isArray(children) && children[idx]) {
               const child = children[idx];
               let name = child.fullName || '';
-              if (child.isDisabled) {
-                name += ` (إعاقة: ${child.disabilityType || 'محدد'})`;
-              }
-              if (child.hasChronicIllness) {
-                name += ` (مرض مزمن: ${child.chronicIllnessType || 'محدد'})`;
+              // Add (يتيم) next to orphan names if this person is an orphan
+              if (child.isOrphan) {
+                // Use 'يتيم' for males and 'يتيمة' for females, default to 'يتيم'
+                const orphanText = child.gender === 'female' ? ' (يتيمة)' : ' (يتيم)';
+                name += orphanText;
               }
               return name;
             }
@@ -600,6 +704,37 @@ const AdminFamilies = memo(function AdminFamilies() {
             const idx = parseInt(childBirthDateMatch[1], 10) - 1;
             return Array.isArray(children) && children[idx] ? children[idx].birthDate || '' : '';
           }
+          // Children: childIsDisabledX, childDisabilityTypeX, childHasChronicIllnessX, childChronicIllnessTypeX, childHasWarInjuryX, childWarInjuryTypeX
+          const childIsDisabledMatch = typeof col.key === 'string' ? col.key.match(/^childIsDisabled(\d+)$/) : null;
+          const childDisabilityTypeMatch = typeof col.key === 'string' ? col.key.match(/^childDisabilityType(\d+)$/) : null;
+          const childHasChronicIllnessMatch = typeof col.key === 'string' ? col.key.match(/^childHasChronicIllness(\d+)$/) : null;
+          const childChronicIllnessTypeMatch = typeof col.key === 'string' ? col.key.match(/^childChronicIllnessType(\d+)$/) : null;
+          const childHasWarInjuryMatch = typeof col.key === 'string' ? col.key.match(/^childHasWarInjury(\d+)$/) : null;
+          const childWarInjuryTypeMatch = typeof col.key === 'string' ? col.key.match(/^childWarInjuryType(\d+)$/) : null;
+          if (childIsDisabledMatch) {
+            const idx = parseInt(childIsDisabledMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].isDisabled ? 'نعم' : 'لا') : '';
+          }
+          if (childDisabilityTypeMatch) {
+            const idx = parseInt(childDisabilityTypeMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].disabilityType || '') : '';
+          }
+          if (childHasChronicIllnessMatch) {
+            const idx = parseInt(childHasChronicIllnessMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].hasChronicIllness ? 'نعم' : 'لا') : '';
+          }
+          if (childChronicIllnessTypeMatch) {
+            const idx = parseInt(childChronicIllnessTypeMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].chronicIllnessType || '') : '';
+          }
+          if (childHasWarInjuryMatch) {
+            const idx = parseInt(childHasWarInjuryMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].hasWarInjury ? 'نعم' : 'لا') : '';
+          }
+          if (childWarInjuryTypeMatch) {
+            const idx = parseInt(childWarInjuryTypeMatch[1], 10) - 1;
+            return Array.isArray(children) && children[idx] ? (children[idx].warInjuryType || '') : '';
+          }
           // Static columns
           switch (col.key) {
             case 'husbandName': return family.husbandName || '';
@@ -611,6 +746,8 @@ const AdminFamilies = memo(function AdminFamilies() {
             case 'chronicIllnessType': return family.chronicIllnessType || '';
             case 'hasDisability': return family.hasDisability ? 'نعم' : 'لا';
             case 'disabilityType': return family.disabilityType || '';
+            case 'hasWarInjury': return family.hasWarInjury ? 'نعم' : 'لا';
+            case 'warInjuryType': return family.warInjuryType || '';
             case 'primaryPhone': return family.primaryPhone || '';
             case 'secondaryPhone': return family.secondaryPhone || '';
             case 'originalResidence': return family.originalResidence || '';
@@ -627,7 +764,7 @@ const AdminFamilies = memo(function AdminFamilies() {
               return age < 2;
             }).length : 0;
             case 'hasChildren2To5': {
-              const children2To5 = Array.isArray(members) ? members.filter((member: any) => {
+              const children2To5 = Array.isArray(allMembers) ? allMembers.filter((member: any) => {
                 if (!member.birthDate) return false;
                 const age = getAge(member.birthDate);
                 return age >= 2 && age <= 5;
@@ -635,7 +772,7 @@ const AdminFamilies = memo(function AdminFamilies() {
               return children2To5.length;
             }
             case 'hasChildren6To10': {
-              const children6To10 = Array.isArray(members) ? members.filter((member: any) => {
+              const children6To10 = Array.isArray(allMembers) ? allMembers.filter((member: any) => {
                 if (!member.birthDate) return false;
                 const age = getAge(member.birthDate);
                 return age >= 6 && age <= 10;
@@ -643,7 +780,7 @@ const AdminFamilies = memo(function AdminFamilies() {
               return children6To10.length;
             }
             case 'hasChildren11To15': {
-              const children11To15 = Array.isArray(members) ? members.filter((member: any) => {
+              const children11To15 = Array.isArray(allMembers) ? allMembers.filter((member: any) => {
                 if (!member.birthDate) return false;
                 const age = getAge(member.birthDate);
                 return age >= 11 && age <= 15;
@@ -659,13 +796,14 @@ const AdminFamilies = memo(function AdminFamilies() {
             default: return '';
           }
         }) : [];
-        // Log the rowData, sons, and children before adding to Excel
+        // Log the rowData, sons, children and orphans before adding to Excel
         console.log('Excel rowData:', {
           familyId: family.id,
           husbandName: family.husbandName,
           rowData,
           sons,
           children,
+          orphans,
         });
         const row = sheet.addRow(rowData);
         row.height = 25; // Increased row height for better readability
@@ -1438,7 +1576,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                     </label>
                   )}
                   {/* Render the rest of the columns */}
-                  {excelColumns.filter(col => !col.key.startsWith('son') && !col.key.startsWith('child') && !col.key.startsWith('wife') && !col.key.startsWith('husband')).map((col, idx) => (
+                  {excelColumns.filter(col => !col.key.startsWith('son') && !col.key.startsWith('child') && !col.key.startsWith('orphan') && !col.key.startsWith('wife') && !col.key.startsWith('husband')).map((col, idx) => (
                     <label
                       key={col.key}
                       className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ?? true ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}

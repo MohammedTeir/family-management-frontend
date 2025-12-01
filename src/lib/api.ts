@@ -64,8 +64,8 @@ apiClient.interceptors.response.use(
         removeToken();
         
         // Only redirect if not already on auth page to prevent refresh loop
-        if (!window.location.pathname.includes('/auth')) {
-          window.location.href = '/auth';
+        if (!window.location.pathname.includes('/')) {
+          window.location.href = '/';
         }
         
         // Always preserve the backend error message (login errors, auth errors, etc.)

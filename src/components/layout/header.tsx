@@ -6,6 +6,7 @@ import { Bell, LogOut, User, Users, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 
 export function Header() {
@@ -119,7 +120,7 @@ export function Header() {
               <Link href="/dashboard/notifications">
                 <Button variant="ghost" size="sm" className="relative h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-1">
                   <Bell className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                  {/* Notification count badge could go here */}
+                  <UnreadNotificationBadgeHeader />
                 </Button>
               </Link>
             )}
@@ -209,6 +210,26 @@ export function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+function UnreadNotificationBadgeHeader() {
+  const { data: unreadCount, isLoading } = useQuery({
+    queryKey: ["/api/notifications/unread-count"],
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  if (isLoading || !unreadCount || unreadCount.count === 0) {
+    return null;
+  }
+
+  return (
+    <Badge
+      variant="default"
+      className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[8px] sm:text-[10px] min-w-0"
+    >
+      {unreadCount.count > 99 ? "99+" : unreadCount.count}
+    </Badge>
   );
 }
 

@@ -4,148 +4,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Users, Shield, UserCheck } from "lucide-react";
+import { Users, UserCheck } from "lucide-react";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { validatePasswordWithPolicy } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { AuthSkeleton } from "@/components/ui/auth-skeleton";
 
-const loginSchema = z.object({
-  loginType: z.enum(["head", "admin", "root"]),
-  identifier: z.string().min(1, "هذا الحقل مطلوب"),
-  password: z.string().optional(),
-}).refine((data) => {
-  // Password required for admin/root, optional for head and promoted heads (9-digit admin usernames)
-  const isPromotedHead = data.loginType === "admin" && /^\d{9}$/.test(data.identifier);
-  if (data.loginType !== "head" && !isPromotedHead && (!data.password || data.password.length < 1)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "كلمة المرور مطلوبة",
-  path: ["password"],
-});
-
-const registrationSchema = z.object({
-  headName: z.string().min(1, "الاسم مطلوب"),
+const headLoginSchema = z.object({
   headID: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
-  headBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
-  headJob: z.string().min(1, "المهنة مطلوبة"),
-  headGender: z.enum(['male', 'female', 'other']).default('male'),
-  primaryPhone: z.string().regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
-  confirmPassword: z.string(),
-  spouseName: z.string().optional(),
-  spouseID: z.string().regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "كلمة المرور غير متطابقة",
-  path: ["confirmPassword"],
-}).refine((data) => {
-  // If head is female (wife), then husband (spouse) is mandatory
-  if (data.headGender === 'female' && (!data.spouseName || data.spouseName.trim() === "")) {
-    return false;
-  }
-  // If head is female (wife), then husband ID (spouseID) is mandatory
-  if (data.headGender === 'female' && (!data.spouseID || data.spouseID.trim() === "")) {
-    return false;
-  }
-  return true;
-}, {
-  message: "بيانات الزوج مطلوبة عندما تكون رب الأسرة أنثى",
-  path: ["spouseName"] // This will show the error on the spouseName field
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
-type RegistrationFormData = z.infer<typeof registrationSchema>;
+type HeadLoginFormData = z.infer<typeof headLoginSchema>;
 
-export default function AuthPage() {
+export default function HeadAuthPage() {
   const { user, loginMutation } = useAuth();
   const { toast } = useToast();
-  const [loginType, setLoginType] = useState<"head" | "admin" | "root">("head");
   const { settings, isLoading: settingsLoading } = useSettingsContext();
   const [pendingWelcome, setPendingWelcome] = useState<null | { username: string; role: string }>(null);
 
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  const loginForm = useForm<HeadLoginFormData>({
+    resolver: zodResolver(headLoginSchema),
     defaultValues: {
-      loginType: "head",
-      identifier: "",
-      password: "",
-    },
-  });
-
-  const registrationForm = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
-    defaultValues: {
-      headName: "",
       headID: "",
-      headBirthDate: "",
-      headJob: "",
-      headGender: 'male',
-      primaryPhone: "",
-      password: "",
-      confirmPassword: "",
-      spouseName: "",
-      spouseID: "",
     },
   });
 
-  const registrationMutation = useMutation({
-    mutationFn: async (data: RegistrationFormData) => {
-      const { confirmPassword, ...formData } = data;
-      // Map the new field names to the old ones for backend compatibility
-      const familyData = {
-        ...formData,
-        husbandName: formData.headName,
-        husbandID: formData.headID,
-        husbandBirthDate: formData.headBirthDate,
-        husbandJob: formData.headJob,
-        wifeName: formData.spouseName || null,
-        wifeID: formData.spouseID || null,
-        // Keep headGender for user creation
-      };
-      const res = await apiRequest("POST", "/api/register-family", {
-        user: { password: data.password, gender: data.headGender },
-        family: familyData,
-        members: []
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "تم التسجيل بنجاح",
-        description: "مرحباً بك في النظام",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "خطأ في التسجيل",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Custom registration validation
-  const onRegister = (data: RegistrationFormData) => {
-    const passwordErrors = validatePasswordWithPolicy(data.password, settings);
-    if (passwordErrors.length > 0) {
-      passwordErrors.forEach(msg => registrationForm.setError("password", { type: "manual", message: msg }));
-      return;
-    }
-    if (data.password !== data.confirmPassword) {
-      registrationForm.setError("confirmPassword", { type: "manual", message: "كلمة المرور غير متطابقة" });
-      return;
-    }
-    registrationMutation.mutate(data);
+  // Custom login handling for heads (no password required)
+  const onLogin = (data: HeadLoginFormData) => {
+    loginMutation.mutate(
+      {
+        username: data.headID,
+        password: "", // Empty password for heads
+      },
+      {
+        onSuccess: (user: any) => {
+          // Show welcome toast with full name if available
+          setPendingWelcome({ username: user.username, role: user.role });
+          // For head, wait for family info
+          // (toast will be shown in useEffect below)
+        },
+        // Error handling is already done in the useAuth hook, no need to duplicate
+      }
+    );
   };
 
   // Fetch family info for heads after login to get full name
@@ -153,36 +57,6 @@ export default function AuthPage() {
     queryKey: ["/api/family"],
     enabled: !!pendingWelcome && pendingWelcome.role === "head",
   });
-
-  // Custom login error handling for lockout/ban/max try
-  const onLogin = (data: LoginFormData) => {
-    // Check if this is a promoted head (admin with 9-digit username)
-    const isPromotedHead = data.loginType === "admin" && /^\d{9}$/.test(data.identifier);
-    
-    loginMutation.mutate(
-      {
-        username: data.identifier,
-        password: (data.loginType === "head" || isPromotedHead) ? "" : data.password, // Empty password for heads and promoted heads
-      },
-      {
-        onSuccess: (user: any) => {
-          // Show welcome toast with full name if available
-          setPendingWelcome({ username: user.username, role: user.role });
-          // For admin/root, show username; for head, show full name if available
-          if (user.role !== "head") {
-            toast({
-              title: `مرحباً ${user.username}`,
-              description: "تم تسجيل الدخول بنجاح!",
-            });
-          } else {
-            // For head, wait for family info
-            // (toast will be shown in useEffect below)
-          }
-        },
-        // Error handling is already done in the useAuth hook, no need to duplicate
-      }
-    );
-  };
 
   // Show welcome toast for head after family info is loaded
   useEffect(() => {
@@ -195,12 +69,13 @@ export default function AuthPage() {
     }
   }, [pendingWelcome, family, toast]);
 
-
-  // Redirect if already logged in
+  // Redirect if already logged in and user is not a head
   if (user) {
     if (user.role === "head") {
+      // If a head is already logged in, redirect them to their dashboard
       return <Redirect to="/dashboard" />;
     } else {
+      // If an admin/root is already logged in, redirect them to admin panel
       return <Redirect to="/admin" />;
     }
   }
@@ -218,46 +93,42 @@ export default function AuthPage() {
           <div className="mb-6">
             <div className="mb-4 mx-auto flex items-center justify-center">
               {settings.authPageIcon ? (
-                    <img src={settings.authPageIcon} alt="Logo" className="h-12 w-12 sm:h-16 sm:w-16 object-contain" />
-                  ) : (
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-full flex items-center justify-center">
-                      <Users className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
-                    </div>
-                  )}
+                <img src={settings.authPageIcon} alt="Logo" className="h-24 w-24 sm:h-32 sm:w-32 object-contain" />
+              ) : (
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-full flex items-center justify-center">
+                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                </div>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2 sm:mb-4">
-                    {settings.authPageTitle || "نظام إدارة البيانات العائلية"}
+              {settings.authPageTitle || "نظام إدارة البيانات العائلية - رؤساء الأسر"}
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-            {settings.authPageSubtitle || "نظام شامل لإدارة بيانات الأسر"}
-
-              
+              {settings.authPageSubtitle || "نظام شامل لإدارة بيانات الأسرة"}
             </p>
           </div>
         </div>
-        
+
         {/* Desktop Hero Section */}
         <div className="hidden lg:flex flex-col justify-center items-center text-center p-8">
           <div className="mb-8">
             <div className="mb-6 mx-auto flex items-center justify-center">
               {settings.authPageIcon ? (
-                    <img src={settings.authPageIcon} alt="Logo" className="h-20 w-20 lg:h-24 lg:w-24 object-contain" />
-                  ) : (
-                    <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center">
-                      <Users className="h-12 w-12 text-white" />
-                    </div>
-                  )}
+                <img src={settings.authPageIcon} alt="Logo" className="h-20 w-20 lg:h-24 lg:w-24 object-contain" />
+              ) : (
+                <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center">
+                  <Users className="h-12 w-12 text-white" />
+                </div>
+              )}
             </div>
             <h1 className="text-4xl font-bold text-foreground mb-4">
-                    {settings.authPageTitle || "نظام إدارة البيانات العائلية"}
+              {settings.authPageTitle || "نظام إدارة البيانات العائلية - رؤساء الأسر"}
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-            {settings.authPageSubtitle || "نظام شامل لإدارة بيانات الأسر وتقديم الطلبات والخدمات"}
-
-              
+              {settings.authPageSubtitle || "نظام شامل لإدارة بيانات الأسر وتقديم الطلبات والخدمات"}
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-6 max-w-md">
             <div className="flex items-center p-4 bg-card border rounded-lg shadow-sm">
               <UserCheck className="h-8 w-8 text-primary ml-4 flex-shrink-0" />
@@ -266,277 +137,68 @@ export default function AuthPage() {
                 <p className="text-sm text-muted-foreground">تسجيل وتحديث بيانات أفراد الأسرة</p>
               </div>
             </div>
-            
+
             <div className="flex items-center p-4 bg-card border rounded-lg shadow-sm">
-              <Shield className="h-8 w-8 text-secondary ml-4 flex-shrink-0" />
+              <Users className="h-8 w-8 text-secondary ml-4 flex-shrink-0" />
               <div className="text-right">
                 <h3 className="font-semibold text-card-foreground">تقديم الطلبات</h3>
                 <p className="text-sm text-muted-foreground">طلبات المساعدة والخدمات المختلفة</p>
               </div>
             </div>
-            
+
             <div className="flex items-center p-4 bg-card border rounded-lg shadow-sm">
               <Users className="h-8 w-8 text-accent ml-4 flex-shrink-0" />
               <div className="text-right">
-                <h3 className="font-semibold text-card-foreground">المتابعة الإدارية</h3>
-                <p className="text-sm text-muted-foreground">متابعة الطلبات والتنبيهات</p>
+                <h3 className="font-semibold text-card-foreground">عرض البيانات</h3>
+                <p className="text-sm text-muted-foreground">الاطلاع على بيانات الأسرة والطلبات</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Auth Forms */}
-        <div className="flex items-center justify-center">
+        {/* Login Form */}
+        <div className="flex flex-col items-center justify-center gap-4">
           <Card className="w-full max-w-md mx-auto">
             <CardHeader className="text-center p-4 sm:p-6">
-              <CardTitle className="text-xl sm:text-2xl font-bold">مرحباً بك</CardTitle>
-              <CardDescription className="text-sm sm:text-base">يرجى تسجيل الدخول</CardDescription>
+              <CardTitle className="text-xl sm:text-2xl font-bold">تسجيل دخول رب الأسرة</CardTitle>
+              <CardDescription className="text-sm sm:text-base">يرجى إدخال رقم الهوية</CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              <Tabs defaultValue="login" className="w-full">
-                <TabsList className="grid w-full grid-cols-1 mb-6">
-                  <TabsTrigger value="login" className="text-sm sm:text-base">تسجيل الدخول</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="login">
-                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4 sm:space-y-5">
-                    <div>
-                      <Label htmlFor="loginType" className="text-sm sm:text-base font-medium">نوع المستخدم</Label>
-                      <Select
-                        value={loginType}
-                        onValueChange={(value: "head" | "admin" | "root") => {
-                          setLoginType(value);
-                          loginForm.setValue("loginType", value);
-                        }}
-                      >
-                        <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="head" className="text-sm sm:text-base">رب الأسرة</SelectItem>
-                          <SelectItem value="admin" className="text-sm sm:text-base">مشرف</SelectItem>
-                          <SelectItem value="root" className="text-sm sm:text-base">مشرف رئيسي</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+              <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4 sm:space-y-5">
+                <div>
+                  <Label htmlFor="headID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
+                  <Input
+                    id="headID"
+                    placeholder="رقم الهوية (9 ارقام)"
+                    {...loginForm.register("headID")}
+                    className="h-10 sm:h-11 text-sm sm:text-base mt-1"
+                  />
+                  {loginForm.formState.errors.headID && (
+                    <p className="text-xs sm:text-sm text-destructive mt-1">
+                      {loginForm.formState.errors.headID.message}
+                    </p>
+                  )}
+                </div>
 
-                    <div>
-                      <Label htmlFor="identifier" className="text-sm sm:text-base font-medium">
-                        {loginType === "head" ? "رقم الهوية" : "اسم المستخدم"}
-                      </Label>
-                      <Input
-                        id="identifier"
-                        placeholder={loginType === "head" ? "405857004" : "username"}
-                        {...loginForm.register("identifier")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {loginForm.formState.errors.identifier && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {loginForm.formState.errors.identifier.message}
-                        </p>
-                      )}
-                    </div>
-
-{loginType !== "head" && !(loginType === "admin" && /^\d{9}$/.test(loginForm.watch("identifier") || "")) && (
-                    <div>
-                      <Label htmlFor="password" className="text-sm sm:text-base font-medium">كلمة المرور</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...loginForm.register("password")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {loginForm.formState.errors.password && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {loginForm.formState.errors.password.message}
-                        </p>
-                      )}
-                    </div>
-                    )}
-
-                    <Button 
-                      type="submit" 
-                      className="w-full h-10 sm:h-11 text-sm sm:text-base mt-2"
-                      disabled={loginMutation.isPending}
-                    >
-                      {loginMutation.isPending ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="register">
-                  <form onSubmit={registrationForm.handleSubmit(onRegister)} className="space-y-3 sm:space-y-4">
-                    <div>
-                      <Label htmlFor="headName" className="text-sm sm:text-base font-medium">الاسم الرباعي</Label>
-                      <Input
-                        id="headName"
-                        placeholder="محمد فتح محمود أبو طير"
-                        {...registrationForm.register("headName")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.headName && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.headName.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="headID" className="text-sm sm:text-base font-medium">رقم الهوية</Label>
-                      <Input
-                        id="headID"
-                        placeholder="405857004"
-                        {...registrationForm.register("headID")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.headID && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.headID.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="headBirthDate" className="text-sm sm:text-base font-medium">تاريخ الميلاد</Label>
-                      <Input
-                        id="headBirthDate"
-                        type="date"
-                        {...registrationForm.register("headBirthDate")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.headBirthDate && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.headBirthDate.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="headJob" className="text-sm sm:text-base font-medium">المهنة</Label>
-                      <Input
-                        id="headJob"
-                        placeholder="مهندس"
-                        {...registrationForm.register("headJob")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.headJob && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.headJob.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="headGender" className="text-sm sm:text-base font-medium">الجنس</Label>
-                      <Select
-                        value={registrationForm.watch("headGender")}
-                        onValueChange={(value) => registrationForm.setValue("headGender", value as any)}
-                      >
-                        <SelectTrigger className="h-10 sm:h-11 text-sm sm:text-base mt-1">
-                          <SelectValue placeholder="اختر الجنس" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male" className="text-sm sm:text-base">ذكر</SelectItem>
-                          <SelectItem value="female" className="text-sm sm:text-base">أنثى</SelectItem>
-                          <SelectItem value="other" className="text-sm sm:text-base">آخر</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {registrationForm.watch("headGender") === "female" && (
-                      <>
-                        <div>
-                          <Label htmlFor="spouseName" className="text-sm sm:text-base font-medium">اسم الزوج *</Label>
-                          <Input
-                            id="spouseName"
-                            placeholder="اسم الزوج"
-                            {...registrationForm.register("spouseName")}
-                            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                          />
-                          {registrationForm.formState.errors.spouseName && (
-                            <p className="text-xs sm:text-sm text-destructive mt-1">
-                              {registrationForm.formState.errors.spouseName.message}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label htmlFor="spouseID" className="text-sm sm:text-base font-medium">رقم هوية الزوج *</Label>
-                          <Input
-                            id="spouseID"
-                            placeholder="رقم هوية الزوج"
-                            {...registrationForm.register("spouseID")}
-                            className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                          />
-                          {registrationForm.formState.errors.spouseID && (
-                            <p className="text-xs sm:text-sm text-destructive mt-1">
-                              {registrationForm.formState.errors.spouseID.message}
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                    <div>
-                      <Label htmlFor="primaryPhone" className="text-sm sm:text-base font-medium">رقم الجوال</Label>
-                      <Input
-                        id="primaryPhone"
-                        placeholder="0592524815"
-                        {...registrationForm.register("primaryPhone")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.primaryPhone && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.primaryPhone.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="password" className="text-sm sm:text-base font-medium">كلمة المرور</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...registrationForm.register("password")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.password && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.password.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="confirmPassword" className="text-sm sm:text-base font-medium">تأكيد كلمة المرور</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        placeholder="••••••••"
-                        {...registrationForm.register("confirmPassword")}
-                        className="h-10 sm:h-11 text-sm sm:text-base mt-1"
-                      />
-                      {registrationForm.formState.errors.confirmPassword && (
-                        <p className="text-xs sm:text-sm text-destructive mt-1">
-                          {registrationForm.formState.errors.confirmPassword.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      className="w-full h-10 sm:h-11 text-sm sm:text-base mt-2"
-                      disabled={registrationMutation.isPending}
-                    >
-                      {registrationMutation.isPending ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
+                <Button
+                  type="submit"
+                  className="w-full h-10 sm:h-11 text-sm sm:text-base mt-2"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? "جاري تسجيل الدخول..." : "تسجيل دخول رب الأسرة"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full max-w-md h-10 sm:h-11 text-sm sm:text-base"
+            onClick={() => window.location.href = "/admin-auth"}
+          >
+            تسجيل دخول المشرف
+          </Button>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { Activity } from "lucide-react";
+import { Activity, BarChart3, Users, FileText } from "lucide-react";
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { PageWrapper } from "@/components/layout/page-wrapper";
@@ -37,6 +37,19 @@ export default function AdminLogs() {
       return response.data;
     },
     keepPreviousData: true,
+  });
+
+  // Fetch statistics
+  const { data: statistics } = useQuery({
+    queryKey: ["/api/admin/logs/statistics", { startDate, endDate }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      const response = await apiClient.get(`/api/admin/logs/statistics?${params.toString()}`);
+      return response.data;
+    },
+    refetchInterval: 300000, // Refetch every 5 minutes
   });
 
   const { data: allUsers } = useQuery({
@@ -133,6 +146,91 @@ export default function AdminLogs() {
                 سجل النشاطات
               </CardTitle>
             </CardHeader>
+
+            {/* Statistics Section */}
+            <CardContent>
+              <div className="mb-6 sm:mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    إحصائيات السجلات
+                  </h2>
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                      className="w-auto text-sm"
+                    />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      className="w-auto text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Main Statistics */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <StatCard
+                    title="إجمالي السجلات"
+                    value={statistics?.total || 0}
+                    icon={<FileText className="h-5 w-5" />}
+                    color="bg-blue-100 text-blue-800"
+                  />
+                  <StatCard
+                    title="العائلات الفريدة"
+                    value={statistics?.familyCount || 0}
+                    icon={<Users className="h-5 w-5" />}
+                    color="bg-green-100 text-green-800"
+                  />
+                  <StatCard
+                    title="أنواع السجلات"
+                    value={statistics?.byType?.length || 0}
+                    icon={<BarChart3 className="h-5 w-5" />}
+                    color="bg-purple-100 text-purple-800"
+                  />
+                  <StatCard
+                    title="المستخدمون النشطون"
+                    value={statistics?.byUser?.length || 0}
+                    icon={<Activity className="h-5 w-5" />}
+                    color="bg-orange-100 text-orange-800"
+                  />
+                </div>
+
+                {/* Log Type Statistics - Unique Families Count */}
+                <div className="mb-4">
+                  <h3 className="text-base sm:text-lg font-medium text-foreground mb-3">السجلات حسب النوع - مجمعة حسب العائلات الفريدة</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    <StatCard
+                      title="إنشاء عائلة"
+                      value={statistics?.typeFamilyCounts?.family_creation || 0}
+                      icon={<FileText className="h-5 w-5" />}
+                      color="bg-green-100 text-green-800"
+                    />
+                    <StatCard
+                      title="تحديث عائلة"
+                      value={statistics?.typeFamilyCounts?.family_update || 0}
+                      icon={<FileText className="h-5 w-5" />}
+                      color="bg-amber-100 text-amber-800"
+                    />
+                    <StatCard
+                      title="تحديث بيانات الزوج/الزوجة"
+                      value={statistics?.typeFamilyCounts?.spouse_update || 0}
+                      icon={<Users className="h-5 w-5" />}
+                      color="bg-blue-100 text-blue-800"
+                    />
+                    <StatCard
+                      title="تحديث العائلة من قبل المشرف"
+                      value={statistics?.typeFamilyCounts?.admin_family_update || 0}
+                      icon={<Activity className="h-5 w-5" />}
+                      color="bg-red-100 text-red-800"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="space-y-2">
@@ -321,7 +419,25 @@ export default function AdminLogs() {
               </div>
             </CardContent>
           </Card>
-              </div>
+        </div>
     </PageWrapper>
+  );
+}
+
+function StatCard({ title, value, icon, color }: { title: string; value: number; icon: React.ReactNode; color: string }) {
+  return (
+    <Card className="border border-border">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{value}</p>
+          </div>
+          <div className={`p-3 rounded-lg ${color}`}>
+            {icon}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 } 

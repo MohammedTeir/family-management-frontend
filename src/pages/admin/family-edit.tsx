@@ -14,6 +14,7 @@ import { Edit2, Plus, Trash2, ArrowLeft, Users } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getRelationshipInArabic, getGenderInArabic, calculateDetailedAge, getBranchInArabic, getDamageDescriptionInArabic, getSocialStatusInArabic } from "@/lib/utils";
+import { compressImage } from "@/lib/image-compression";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -104,6 +105,13 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
 
       if (familyData.wifeHasDisability === undefined) familyData.wifeHasDisability = false;
       if (familyData.wifeHasDisability === false) familyData.wifeDisabilityType = null;
+
+      // Handle war injury fields
+      if (familyData.hasWarInjury === undefined) familyData.hasWarInjury = false;
+      if (familyData.hasWarInjury === false) familyData.warInjuryType = null;
+
+      if (familyData.wifeHasWarInjury === undefined) familyData.wifeHasWarInjury = false;
+      if (familyData.wifeHasWarInjury === false) familyData.wifeWarInjuryType = null;
 
       // First update the family
       const familyResponse = await apiClient.put(`/api/admin/families/${id}`, familyData);
@@ -267,7 +275,9 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
         hasChronicIllness: family.hasChronicIllness || false,
         wifeHasChronicIllness: family.wifeHasChronicIllness || false,
         hasDisability: family.hasDisability || false,
-        wifeHasDisability: family.wifeHasDisability || false
+        wifeHasDisability: family.wifeHasDisability || false,
+        hasWarInjury: family.hasWarInjury || false,
+        wifeHasWarInjury: family.wifeHasWarInjury || false
       });
     }
   }, [family]);
@@ -448,6 +458,17 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                                   <Label htmlFor="hasDisability" className="cursor-pointer">يعاني من إعاقة</Label>
                                 </div>
                               </div>
+                              <div className="rounded-md border border-input p-3">
+                                <div className="flex items-center justify-end space-x-2 space-x-reverse">
+                                  <Switch
+                                    id="hasWarInjury"
+                                    name="hasWarInjury"
+                                    checked={!!familyForm.hasWarInjury}
+                                    onCheckedChange={(checked: boolean) => setFamilyForm((f: any) => ({ ...f, hasWarInjury: checked }))}
+                                  />
+                                  <Label htmlFor="hasWarInjury" className="cursor-pointer">يعاني من إصابة حرب</Label>
+                                </div>
+                              </div>
                             </div>
                             {familyForm.hasChronicIllness && (
                               <div className="flex flex-col items-end mt-4">
@@ -459,6 +480,12 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                               <div className="flex flex-col items-end mt-4">
                                 <Label htmlFor="disabilityType" className="text-right w-full mb-1">نوع الإعاقة</Label>
                                 <Input id="disabilityType" name="disabilityType" value={familyForm.disabilityType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
+                              </div>
+                            )}
+                            {familyForm.hasWarInjury && (
+                              <div className="flex flex-col items-end mt-4">
+                                <Label htmlFor="warInjuryType" className="text-right w-full mb-1">نوع إصابة الحرب</Label>
+                                <Input id="warInjuryType" name="warInjuryType" value={familyForm.warInjuryType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
                               </div>
                             )}
                           </div>
@@ -522,6 +549,17 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                                 <div className="rounded-md border border-input p-3">
                                   <div className="flex items-center justify-end space-x-2 space-x-reverse">
                                     <Switch
+                                      id="wifeHasWarInjury"
+                                      name="wifeHasWarInjury"
+                                      checked={!!familyForm.wifeHasWarInjury}
+                                      onCheckedChange={(checked: boolean) => setFamilyForm((f: any) => ({ ...f, wifeHasWarInjury: checked }))}
+                                    />
+                                    <Label htmlFor="wifeHasWarInjury" className="cursor-pointer">{familyForm.userGender === "female" ? "يعاني من إصابة حرب" : "تعاني من إصابة حرب"}</Label>
+                                  </div>
+                                </div>
+                                <div className="rounded-md border border-input p-3">
+                                  <div className="flex items-center justify-end space-x-2 space-x-reverse">
+                                    <Switch
                                       id="wifePregnant"
                                       name="wifePregnant"
                                       checked={!!familyForm.wifePregnant}
@@ -541,6 +579,12 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                                 <div className="flex flex-col items-end mt-4">
                                   <Label htmlFor="wifeDisabilityType" className="text-right w-full mb-1">نوع الإعاقة</Label>
                                   <Input id="wifeDisabilityType" name="wifeDisabilityType" value={familyForm.wifeDisabilityType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
+                                </div>
+                              )}
+                              {familyForm.wifeHasWarInjury && (
+                                <div className="flex flex-col items-end mt-4">
+                                  <Label htmlFor="wifeWarInjuryType" className="text-right w-full mb-1">نوع إصابة الحرب</Label>
+                                  <Input id="wifeWarInjuryType" name="wifeWarInjuryType" value={familyForm.wifeWarInjuryType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
                                 </div>
                               )}
                             </div>
@@ -569,6 +613,17 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                                     <Label htmlFor="wifeHasDisability" className="cursor-pointer">{familyForm.userGender === "female" ? "يعاني من إعاقة" : "تعاني من إعاقة"}</Label>
                                   </div>
                                 </div>
+                                <div className="rounded-md border border-input p-3">
+                                  <div className="flex items-center justify-end space-x-2 space-x-reverse">
+                                    <Switch
+                                      id="wifeHasWarInjury"
+                                      name="wifeHasWarInjury"
+                                      checked={!!familyForm.wifeHasWarInjury}
+                                      onCheckedChange={(checked: boolean) => setFamilyForm((f: any) => ({ ...f, wifeHasWarInjury: checked }))}
+                                    />
+                                    <Label htmlFor="wifeHasWarInjury" className="cursor-pointer">{familyForm.userGender === "female" ? "يعاني من إصابة حرب" : "تعاني من إصابة حرب"}</Label>
+                                  </div>
+                                </div>
                               </div>
                               {familyForm.wifeHasChronicIllness && (
                                 <div className="flex flex-col items-end mt-4">
@@ -580,6 +635,12 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                                 <div className="flex flex-col items-end mt-4">
                                   <Label htmlFor="wifeDisabilityType" className="text-right w-full mb-1">نوع الإعاقة</Label>
                                   <Input id="wifeDisabilityType" name="wifeDisabilityType" value={familyForm.wifeDisabilityType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
+                                </div>
+                              )}
+                              {familyForm.wifeHasWarInjury && (
+                                <div className="flex flex-col items-end mt-4">
+                                  <Label htmlFor="wifeWarInjuryType" className="text-right w-full mb-1">نوع إصابة الحرب</Label>
+                                  <Input id="wifeWarInjuryType" name="wifeWarInjuryType" value={familyForm.wifeWarInjuryType || ""} onChange={handleFamilyChange} className="text-right max-w-md w-full" />
                                 </div>
                               )}
                             </div>
@@ -979,6 +1040,8 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
     disabilityType: initialData?.disabilityType || "",
     hasChronicIllness: initialData?.hasChronicIllness || false,
     chronicIllnessType: initialData?.chronicIllnessType || "",
+    hasWarInjury: initialData?.hasWarInjury || false,
+    warInjuryType: initialData?.warInjuryType || "",
   });
 
   // State to track validation errors
@@ -989,6 +1052,9 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
     gender: "",
     relationship: "",
   });
+
+  const [showWarInjuryType, setShowWarInjuryType] = useState(form.hasWarInjury);
+  const [customWarInjuryType, setCustomWarInjuryType] = useState(form.warInjuryType || "");
 
   useEffect(() => {
     setShowCustomRelationship(form.relationship === "other");
@@ -1005,6 +1071,14 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
       setCustomChronicIllnessType(form.chronicIllnessType);
     }
   }, [form.hasChronicIllness, form.chronicIllnessType, setShowChronicIllnessType]);
+
+  useEffect(() => {
+    setShowWarInjuryType(form.hasWarInjury);
+    // Initialize customWarInjuryType if there's a value in the form
+    if (form.hasWarInjury && form.warInjuryType) {
+      setCustomWarInjuryType(form.warInjuryType);
+    }
+  }, [form.hasWarInjury, form.warInjuryType, setShowWarInjuryType]);
 
   // Validation function
   const validateForm = () => {
@@ -1029,6 +1103,7 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
     if (name === "relationship" && value === "other") setCustomRelationship("");
     if (name === "isDisabled" && !checked) setCustomDisabilityType("");
     if (name === "hasChronicIllness" && !checked) setCustomChronicIllnessType("");
+    if (name === "hasWarInjury" && !checked) setCustomWarInjuryType("");
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -1044,6 +1119,7 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
       relationship: form.relationship === "other" ? customRelationship : form.relationship,
       disabilityType: showDisabilityType ? customDisabilityType : "",
       chronicIllnessType: showChronicIllnessType ? customChronicIllnessType : "",
+      warInjuryType: showWarInjuryType ? customWarInjuryType : "",
     });
   }
 
@@ -1131,6 +1207,12 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
                   <Label htmlFor="hasChronicIllness" className="cursor-pointer">يعاني من مرض مزمن</Label>
                 </div>
               </div>
+              <div className="rounded-md border border-input p-3">
+                <div className="flex items-center justify-end space-x-2 space-x-reverse">
+                  <Switch id="hasWarInjury" name="hasWarInjury" checked={form.hasWarInjury} onCheckedChange={checked => setForm(f => ({ ...f, hasWarInjury: checked }))} />
+                  <Label htmlFor="hasWarInjury" className="cursor-pointer">يعاني من إصابة حرب</Label>
+                </div>
+              </div>
             </div>
             {showDisabilityType && (
               <div>
@@ -1142,6 +1224,12 @@ function MemberFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit, c
               <div>
                 <Label htmlFor="chronicIllnessType" className="text-sm sm:text-base font-medium">نوع المرض المزمن</Label>
                 <Input id="chronicIllnessType" name="chronicIllnessType" value={customChronicIllnessType} onChange={e => setCustomChronicIllnessType(e.target.value)} className="text-right mt-1" />
+              </div>
+            )}
+            {showWarInjuryType && (
+              <div>
+                <Label htmlFor="warInjuryType" className="text-sm sm:text-base font-medium">نوع إصابة الحرب</Label>
+                <Input id="warInjuryType" name="warInjuryType" value={customWarInjuryType} onChange={e => setCustomWarInjuryType(e.target.value)} className="text-right mt-1" />
               </div>
             )}
           </div>
@@ -1537,12 +1625,27 @@ function OrphanFormModal({ initialData, onSubmit, onCancel, isLoading, isEdit }:
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Convert image to base64 for sending to backend
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        form.setValue("image", reader.result as string);
-                      };
-                      reader.readAsDataURL(file);
+                      // First compress the image to reduce size
+                      compressImage(file)
+                        .then(compressedFile => {
+                          // Convert the compressed image to base64 for sending to backend
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            form.setValue("image", reader.result as string);
+                          };
+                          reader.readAsDataURL(compressedFile);
+                        })
+                        .catch(error => {
+                          console.error('Error compressing image:', error);
+
+                          // Fallback to original image if compression fails
+                          // Convert original image to base64 for sending to backend
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            form.setValue("image", reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        });
                     }
                   }}
                 />

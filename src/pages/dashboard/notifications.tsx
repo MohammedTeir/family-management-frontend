@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, AlertCircle, CheckCircle, Info } from "lucide-react";
@@ -7,11 +7,59 @@ import { useSettingsContext } from "@/contexts/SettingsContext";
 import { useEffect } from "react";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Header } from "@/components/layout/header";
+import { api } from "@/lib/api";
 
 export default function Notifications() {
+  const queryClient = useQueryClient();
   const { data: notifications, isLoading } = useQuery({
     queryKey: ["/api/notifications"],
   });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: number) => {
+      const response = await api.post(`/api/notifications/${notificationId}/read`);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate the unread count query to refresh the badge
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      // Invalidate the main notifications query to update read status
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    }
+  });
+
+  // Mark all notifications as read when the page loads
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      // Mark each unread notification as read
+      const unreadNotifications = notifications?.filter((n: any) => !n.read) || [];
+      const promises = unreadNotifications.map((notification: any) =>
+        api.post(`/api/notifications/${notification.id}/read`)
+      );
+
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      // Invalidate the unread count query to refresh the badge
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      // Invalidate the main notifications query to update read status
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    }
+  });
+
+  // Mark all notifications as read when component mounts
+  useEffect(() => {
+    if (notifications && notifications.length > 0) {
+      const unreadNotifications = notifications.filter((n: any) => !n.read);
+      if (unreadNotifications.length > 0) {
+        markAllAsReadMutation.mutate();
+      }
+    }
+  }, [notifications]);
 
   const { settings } = useSettingsContext();
 
@@ -141,19 +189,31 @@ export default function Notifications() {
             {filteredNotifications && filteredNotifications.length > 0 ? (
               <div className="space-y-3 sm:space-y-4">
                 {filteredNotifications.map((notification: any) => (
-                  <div key={notification.id} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:bg-background">
+                  <div
+                    key={notification.id}
+                    className={`border rounded-lg p-4 sm:p-6 hover:bg-background cursor-pointer ${
+                      notification.read
+                        ? 'border-gray-100 bg-gray-50 text-muted-foreground'
+                        : 'border-gray-200 bg-background'
+                    }`}
+                    onClick={() => markAsReadMutation.mutate(notification.id)}
+                  >
                     <div className="flex items-start gap-3 sm:gap-4">
                       <div className="flex-shrink-0 mt-1">
                         {getNotificationIcon(notification.target)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
-                          <h3 className="text-base sm:text-lg font-semibold text-foreground flex flex-wrap items-center gap-2">
+                          <h3 className={`text-base sm:text-lg font-semibold flex flex-wrap items-center gap-2 ${
+                            notification.read ? 'text-muted-foreground' : 'text-foreground'
+                          }`}>
                             <span className="break-words">{notification.title}</span>
                             {getNotificationBadge(notification)}
                           </h3>
                         </div>
-                        <p className="text-sm sm:text-base text-gray-700 mb-3 leading-relaxed break-words">
+                        <p className={`text-sm sm:text-base mb-3 leading-relaxed break-words ${
+                          notification.read ? 'text-muted-foreground' : 'text-gray-700'
+                        }`}>
                           {notification.message}
                         </p>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-muted-foreground">

@@ -31,11 +31,11 @@ const userSchema = z.object({
 });
 
 const headSchema = z.object({
-  username: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
+  username: z.string().regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام").min(1, "رقم الهوية مطلوب"),
   husbandName: z.string().min(1, "الاسم مطلوب"),
-  husbandBirthDate: z.string().min(1, "تاريخ الميلاد مطلوب"),
-  husbandJob: z.string().min(1, "المهنة مطلوبة"),
-  primaryPhone: z.string().min(1, "رقم الجوال مطلوب"),
+  husbandBirthDate: z.string().optional(),
+  husbandJob: z.string().optional(),
+  primaryPhone: z.string().optional(),
   secondaryPhone: z.string().optional(),
 });
 
@@ -999,11 +999,11 @@ export default function Users() {
                 </div>
 
                 <div>
-                  <Label htmlFor="head-birthdate" className="text-sm sm:text-base">تاريخ الميلاد *</Label>
+                  <Label htmlFor="head-birthdate" className="text-sm sm:text-base">تاريخ الميلاد</Label>
                   <Input
                     id="head-birthdate"
                     type="date"
-                    {...headForm.register("husbandBirthDate", { required: true })}
+                    {...headForm.register("husbandBirthDate")}
                     className="mt-1"
                   />
                   {headForm.formState.errors.husbandBirthDate && (
@@ -1012,11 +1012,11 @@ export default function Users() {
                 </div>
 
                 <div>
-                  <Label htmlFor="head-job" className="text-sm sm:text-base">المهنة *</Label>
+                  <Label htmlFor="head-job" className="text-sm sm:text-base">المهنة</Label>
                   <Input
                     id="head-job"
                     placeholder="أدخل المهنة"
-                    {...headForm.register("husbandJob", { required: true })}
+                    {...headForm.register("husbandJob")}
                     className="mt-1"
                   />
                   {headForm.formState.errors.husbandJob && (
@@ -1025,11 +1025,11 @@ export default function Users() {
                 </div>
 
                 <div>
-                  <Label htmlFor="head-primary-phone" className="text-sm sm:text-base">رقم الجوال الأساسي *</Label>
+                  <Label htmlFor="head-primary-phone" className="text-sm sm:text-base">رقم الجوال الأساسي</Label>
                   <Input
                     id="head-primary-phone"
                     placeholder="أدخل رقم الجوال (مثال: 0592524815)"
-                    {...headForm.register("primaryPhone", { required: true })}
+                    {...headForm.register("primaryPhone")}
                     className="mt-1"
                   />
                   {headForm.formState.errors.primaryPhone && (
