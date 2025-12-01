@@ -199,6 +199,9 @@ export default function HeadAuthPage() {
           >
             تسجيل دخول المشرف
           </Button>
+          <div className="mt-6 text-center text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} جميع الحقوق محفوظة | تم التطوير بواسطة: Eng.Mohammed Fateh Abuteir
+          </div>
         </div>
       </div>
     </div>
