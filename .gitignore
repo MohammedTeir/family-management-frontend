@@ -1,1 +1,145 @@
-node_modules
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Build outputs
+dist/
+build/
+.nuxt/
+.next/
+out/
+.nv/
+output/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.lerna.log
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Temporary folders
+tmp/
+temp/
+.DS_Store
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database files
+*.db
+*.db-journal
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Process supervisor logs
+pm2/logs/
+
+# Sensitive files
+config/
+secrets/
+private/
+keys/
+certs/
+
+# Browser extensions
+*.crx
+*.xpi
+*.dmg
+
+# Editor files
+.vs/
+*.sublime-project
+*.sublime-workspace
+
+# Compiled CSS
+*.css.map
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Development artifacts
+.storybook/
+.craft/
+.nyc_output/
+
+# Browsers
+hs_err_pid*
+*.tmp
+*.temp
+
+# Testing
+coverage/
+junit.xml
+*.har
+
+# Vite specific
+.svelte-kit/
+vite.config.ts.timestamp-*
+
+# Environment specific files
+.env.backup
+.env.backup.*
+
+# Local configurations
+local.config.json
+config.local.json
+*.bak
+*.bak.*
+
+# Storybook
+.storybook/
+
+# Cypress
+cypress/screenshots/
+cypress/videos/
+
+# Jest
+.jest/
+
+# VSCode specific
+.vscode/tasks.json
+.vscode/launch.json
+
+# Exclude the example env file if it's not meant to be tracked
+!.env.example
