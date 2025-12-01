@@ -76,7 +76,7 @@ export function Header() {
   
 
   return (
-    <header className="bg-background shadow-sm border-b border-border no-print">
+    <header className="sticky top-0 z-50 bg-background shadow-sm border-b border-border no-print">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex justify-between items-center h-12 sm:h-14 md:h-16">
           <div className="flex items-center min-w-0 flex-1">
@@ -97,7 +97,7 @@ export function Header() {
               </div>
             </Link>
           </div>
-          
+
           <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 space-x-reverse">
             {/* Dashboard Switch for dual-role users */}
             {dualRole && user?.role !== 'root' && (
@@ -157,14 +157,14 @@ export function Header() {
                     <DropdownMenuSeparator className="lg:hidden" />
                   </>
                 )}
-                
+
                 <Link href="/dashboard/profile">
                   <DropdownMenuItem className="text-sm">
                     <User className="h-4 w-4 ml-2" />
                     <span>الملف الشخصي</span>
                   </DropdownMenuItem>
                 </Link>
-                
+
                 {/* Settings link for admin and root users */}
                 {(user?.role === 'root') && (
                   <>
@@ -177,7 +177,7 @@ export function Header() {
                     </Link>
                   </>
                 )}
-                
+
                 {user?.role === 'head' && (
                   <>
                     <DropdownMenuSeparator />
@@ -195,9 +195,9 @@ export function Header() {
                     </Link>
                   </>
                 )}
-                
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-sm text-destructive hover:text-destructive hover:bg-destructive/10"
                 >

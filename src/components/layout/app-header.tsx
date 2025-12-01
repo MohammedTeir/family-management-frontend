@@ -91,7 +91,7 @@ export function AppHeader() {
   };
 
   return (
-    <header className="flex h-12 sm:h-14 md:h-16 shrink-0 items-center gap-1 sm:gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b">
+    <header className="sticky top-0 z-50 flex h-12 sm:h-14 md:h-16 shrink-0 items-center gap-1 sm:gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background">
       <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4">
         <SidebarTrigger className="-ml-1 h-7 w-7 sm:h-8 sm:w-8" />
         <Separator orientation="vertical" className="mr-1 sm:mr-2 h-3 sm:h-4" />
@@ -113,7 +113,7 @@ export function AppHeader() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      
+
       <div className="mr-auto flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4">
         {/* Dashboard Switch for dual-role users */}
         {dualRole && user?.role !== 'root' && (
@@ -175,14 +175,14 @@ export function AppHeader() {
                 <DropdownMenuSeparator className="lg:hidden" />
               </>
             )}
-            
+
             <Link href="/dashboard/profile">
               <DropdownMenuItem className="text-sm">
                 <User className="h-4 w-4 ml-2" />
                 <span>الملف الشخصي</span>
               </DropdownMenuItem>
             </Link>
-            
+
             {/* Settings link for admin and root users */}
             {(user?.role === 'root') && (
               <>
@@ -195,7 +195,7 @@ export function AppHeader() {
                 </Link>
               </>
             )}
-            
+
             {user?.role === 'head' && (
               <>
                 <DropdownMenuSeparator />
@@ -213,9 +213,9 @@ export function AppHeader() {
                 </Link>
               </>
             )}
-            
+
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={handleLogout}
               className="text-sm text-destructive hover:text-destructive hover:bg-destructive/10"
             >

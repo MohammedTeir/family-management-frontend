@@ -95,7 +95,6 @@ const adminNavItems = [
     title: "سجل النشاطات",
     href: "/admin/logs",
     icon: Activity,
-    requiresRoot: true,
   },
 ];
 

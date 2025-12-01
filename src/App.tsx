@@ -79,7 +79,7 @@ function Router() {
         <ProtectedRoute path="/admin/families/:id/edit" component={props => <AdminFamilyEdit {...props} />} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/families/:id/summary" component={Summary} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/reports" component={ReportsPage} roles={['admin', 'root']} />
-        <ProtectedRoute path="/admin/logs" component={AdminLogs} roles={['root']} />
+        <ProtectedRoute path="/admin/logs" component={AdminLogs} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/settings" component={SettingsPage} roles={['root']} />
         <ProtectedRoute path="/admin/support-vouchers" component={SupportVouchers} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/support-vouchers/:id" component={props => <VoucherDetails {...props} />} roles={['admin', 'root']} />
