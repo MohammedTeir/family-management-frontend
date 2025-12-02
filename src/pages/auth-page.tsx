@@ -199,13 +199,18 @@ export default function HeadAuthPage() {
           >
             تسجيل دخول المشرف
           </Button>
-          <div className="mt-6 text-center text-xs text-muted-foreground" dir="rtl">
+          
+<div className="mt-6 text-center text-xs text-muted-foreground" dir="rtl">
     &copy; {new Date().getFullYear()} جميع الحقوق محفوظة
     <br/>
     |
     تم التطوير بواسطة: م. محمد فتح أبو طير
-    </div>
-          
+    <br/>
+    |
+    تم الإشراف بواسطة: م. ميسرة أبو طير و م. مراد أحمد أبو طير
+    <br/>
+م. أحمد شحادة أبو طير (أبو يزن)
+</div>         
         </div>
       </div>
     </div>
