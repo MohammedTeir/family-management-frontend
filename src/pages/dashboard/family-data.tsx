@@ -1,8 +1,3 @@
-I need to restore the complete original file first. Let me get the original version and provide you with the fully corrected comprehensive version:# Complete Corrected File: family-data.tsx
-
-Here's the complete corrected `src/pages/dashboard/family-data.tsx` file with all comprehensive fixes applied for gender-based label synchronization:
-
-```tsx name="family-data.tsx" url="https://github.com/MohammedTeir/family-management-frontend/blob/main/src/pages/dashboard/family-data.tsx
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
