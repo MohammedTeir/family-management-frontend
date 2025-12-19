@@ -35,8 +35,8 @@ const familySchema = z.object({
   husbandJob: z.string({ required_error: "المهنة مطلوبة", invalid_type_error: "المهنة يجب أن تكون نص" }).min(1, "المهنة مطلوبة"),
   primaryPhone: z.string({ required_error: "رقم الجوال مطلوب", invalid_type_error: "رقم الجوال يجب أن يكون نص" }).regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
   secondaryPhone: z.string({ invalid_type_error: "رقم الجوال البديل يجب أن يكون نص" }).nullable().optional(),
-  spouseName: z.string({ invalid_type_error: "اسم الزوج/ة يجب أن يكون نص" }).nullable().optional(),
-  spouseID: z.string({ invalid_type_error: "رقم هوية الزوج/ة يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").nullable().optional(),
+  spouseName: z.string({ invalid_type_error: "اسم الزوج/ة يجب أن يكون نص" }).optional(),
+  spouseID: z.string({ invalid_type_error: "رقم هوية الزوج/ة يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").optional(),
   spouseBirthDate: z.string({ invalid_type_error: "تاريخ ميلاد الزوج/ة يجب أن يكون نص" }).nullable().optional(),
   spouseJob: z.string({ invalid_type_error: "مهنة الزوج/ة يجب أن تكون نص" }).nullable().optional(),
   spousePregnant: z.boolean({ invalid_type_error: "حقل الحمل يجب أن يكون صحيح أو خطأ" }).default(false),
@@ -74,12 +74,13 @@ const familySchema = z.object({
   headGender: z.enum(['male', 'female']).optional(),
 }).refine((data) => {
   // If head is female (wife), then husband (spouse) is mandatory
-  if (data.headGender === 'female' && (!data.spouseName || data.spouseName.trim() === "")) {
-    return false;
-  }
-  // If head is female (wife), then husband ID (spouseID) is mandatory
-  if (data.headGender === 'female' && (!data.spouseID || data.spouseID.trim() === "")) {
-    return false;
+  if (data.headGender === 'female') {
+    if (!data.spouseName || data.spouseName.trim() === "") {
+      return false;
+    }
+    if (!data.spouseID || data.spouseID.trim() === "") {
+      return false;
+    }
   }
   return true;
 }, {
@@ -176,21 +177,21 @@ export default function FamilyData() {
       husbandJob: "",
       primaryPhone: "",
       secondaryPhone: "",
-      spouseName: "",
-      spouseID: "",
-      spouseBirthDate: "",
-      spouseJob: "",
+      spouseName: null,
+      spouseID: null,
+      spouseBirthDate: null,
+      spouseJob: null,
       spousePregnant: false,
       originalResidence: "",
       currentHousing: "",
       isDisplaced: false,
-      displacedLocation: "",
+      displacedLocation: null,
       isAbroad: false,
       warDamage2023: false,
-      warDamageDescription: "",
-      branch: "",
+      warDamageDescription: null,
+      branch: null,
       landmarkNear: "",
-      socialStatus: "",
+      socialStatus: null,
       totalMembers: 0,
       numMales: 0,
       numFemales: 0,
