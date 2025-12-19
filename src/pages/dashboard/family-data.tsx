@@ -458,12 +458,19 @@ export default function FamilyData() {
 
       // Check if head is female and spouse fields are missing
       const headGender = form.watch("headGender") || family?.headGender || "male";
-      let spouseError = false;
-      if (headGender === 'female' && errors.spouseName) {
-        spouseError = true;
+      let spouseNameError = false;
+      let spouseIdError = false;
+
+      if (headGender === 'female') {
+        if (errors.spouseName) {
+          spouseNameError = true;
+        }
+        if (errors.spouseID) {
+          spouseIdError = true;
+        }
       }
 
-      if (requiredErrorFields.length > 0 || spouseError) {
+      if (requiredErrorFields.length > 0 || spouseNameError || spouseIdError) {
         // Map field names to Arabic labels
         const fieldLabels: { [key: string]: string } = {
           husbandName: 'اسم رب/ربة الأسرة',
@@ -480,8 +487,11 @@ export default function FamilyData() {
 
         let errorFieldNames = requiredErrorFields.map(field => fieldLabels[field] || field);
 
-        if (spouseError) {
-          errorFieldNames.push('بيانات الزوج');
+        if (spouseNameError) {
+          errorFieldNames.push('اسم الزوج');
+        }
+        if (spouseIdError) {
+          errorFieldNames.push('رقم هوية الزوج');
         }
 
         toast({
@@ -489,14 +499,8 @@ export default function FamilyData() {
           description: `يرجى مراجعة الحقول المطلوبة: ${errorFieldNames.join(', ')}`,
           variant: "destructive",
         });
-      } else if (Object.keys(errors).length > 0) {
-        // Show a general error message if there are other validation errors
-        toast({
-          title: "خطأ في التحقق",
-          description: "يرجى التأكد من ملء جميع الحقول المطلوبة بشكل صحيح",
-          variant: "destructive",
-        });
       }
+      // Note: We removed the general error message as requested
     }
   );
 
