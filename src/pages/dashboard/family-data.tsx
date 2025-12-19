@@ -291,7 +291,11 @@ export default function FamilyData() {
       { field: 'numFemales', label: 'عدد الإناث' }
     ];
 
-    const emptyFields = requiredFields.filter(req => !formData[req.field as keyof typeof formData]);
+    const emptyFields = requiredFields.filter(req => {
+      const value = formData[req.field as keyof typeof formData];
+      // Check if the value is null, undefined, or an empty string (but allow 0 as a valid number)
+      return value === null || value === undefined || value === '';
+    });
 
     if (emptyFields.length > 0) {
       const fieldNames = emptyFields.map(field => field.label);
