@@ -180,6 +180,10 @@ export default function FamilyData() {
         disabilityType: family.disabilityType || "",
         hasWarInjury: family.hasWarInjury || false,
         warInjuryType: family.warInjuryType || "",
+        // Ensure number fields are properly converted to numbers
+        totalMembers: Number(family.totalMembers) || 0,
+        numMales: Number(family.numMales) || 0,
+        numFemales: Number(family.numFemales) || 0,
       });
     }
   }, [family]);
@@ -385,7 +389,9 @@ export default function FamilyData() {
 
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked :
+              (name === 'totalMembers' || name === 'numMales' || name === 'numFemales') ? Number(value) :
+              value
     }));
   };
 
