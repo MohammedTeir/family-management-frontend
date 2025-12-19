@@ -907,7 +907,7 @@ export default function FamilyData() {
           )}
 
 
-        <form onSubmit={handleFormSubmit} className="space-y-6 sm:space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           {/* Family Members */}
           <Card>
             <CardHeader>
@@ -919,49 +919,40 @@ export default function FamilyData() {
                   <Label htmlFor="totalMembers">إجمالي الأفراد *</Label>
                   <Input
                     id="totalMembers"
+                    name="totalMembers"
                     type="number"
                     min={1}
+                    value={formData.totalMembers}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("totalMembers")}
                   />
-                  {form.formState.errors.totalMembers && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.totalMembers.message}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="numMales">عدد الذكور *</Label>
                   <Input
                     id="numMales"
+                    name="numMales"
                     type="number"
                     min={0}
+                    value={formData.numMales}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("numMales")}
                   />
-                  {form.formState.errors.numMales && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.numMales.message}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="numFemales">عدد الإناث *</Label>
                   <Input
                     id="numFemales"
+                    name="numFemales"
                     type="number"
                     min={0}
+                    value={formData.numFemales}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("numFemales")}
                   />
-                  {form.formState.errors.numFemales && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.numFemales.message}
-                    </p>
-                  )}
                 </div>
               </div>
             </CardContent>
@@ -978,37 +969,33 @@ export default function FamilyData() {
                   <Label htmlFor="originalResidence">السكن الأصلي *</Label>
                   <Input
                     id="originalResidence"
+                    name="originalResidence"
+                    value={formData.originalResidence}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("originalResidence")}
                   />
-                  {form.formState.errors.originalResidence && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.originalResidence.message}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="currentHousing">السكن الحالي *</Label>
                   <Input
                     id="currentHousing"
+                    name="currentHousing"
+                    value={formData.currentHousing}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("currentHousing")}
                   />
-                  {form.formState.errors.currentHousing && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.currentHousing.message}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="landmarkNear">أقرب معلم</Label>
                   <Input
                     id="landmarkNear"
+                    name="landmarkNear"
+                    value={formData.landmarkNear}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("landmarkNear")}
                   />
                 </div>
               </div>
@@ -1048,10 +1035,8 @@ export default function FamilyData() {
                     <>
                       <Select
                         disabled={!isEditing}
-                        value={["abushalbia", "alnaqra", "abuawda", "abunasr", "abumatar"].includes(currentBranch) ? currentBranch : ""}
-                        onValueChange={(value) => {
-                          form.setValue("branch", value);
-                        }}
+                        value={formData.branch}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, branch: value }))}
                         dir="rtl"
                       >
                         <SelectTrigger className="text-right">
@@ -1099,10 +1084,8 @@ export default function FamilyData() {
                     <>
                       <Select
                         disabled={!isEditing}
-                        value={currentSocialStatus || ""}
-                        onValueChange={(value) => {
-                          form.setValue("socialStatus", value);
-                        }}
+                        value={formData.socialStatus}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, socialStatus: value }))}
                         dir="rtl"
                       >
                         <SelectTrigger className="text-right">
@@ -1139,8 +1122,8 @@ export default function FamilyData() {
                       <Switch
                         id="isDisplaced"
                         disabled={!isEditing}
-                        checked={form.watch("isDisplaced")}
-                        onCheckedChange={(checked) => form.setValue("isDisplaced", checked)}
+                        checked={formData.isDisplaced}
+                        onCheckedChange={(checked) => handleSwitchChange("isDisplaced", checked)}
                       />
                       <Label htmlFor="isDisplaced" className="cursor-pointer">أسرة نازحة</Label>
                     </div>
@@ -1150,8 +1133,8 @@ export default function FamilyData() {
                       <Switch
                         id="isAbroad"
                         disabled={!isEditing}
-                        checked={form.watch("isAbroad")}
-                        onCheckedChange={(checked) => form.setValue("isAbroad", checked)}
+                        checked={formData.isAbroad}
+                        onCheckedChange={(checked) => handleSwitchChange("isAbroad", checked)}
                       />
                       <Label htmlFor="isAbroad" className="cursor-pointer">مغترب بالخارج</Label>
                     </div>
@@ -1161,27 +1144,29 @@ export default function FamilyData() {
                       <Switch
                         id="warDamage2023"
                         disabled={!isEditing}
-                        checked={form.watch("warDamage2023")}
-                        onCheckedChange={(checked) => form.setValue("warDamage2023", checked)}
+                        checked={formData.warDamage2023}
+                        onCheckedChange={(checked) => handleSwitchChange("warDamage2023", checked)}
                       />
                       <Label htmlFor="warDamage2023" className="cursor-pointer">أضرار 2023</Label>
                     </div>
                   </div>
                 </div>
 
-                {form.watch("isDisplaced") && (
+                {formData.isDisplaced && (
                   <div>
                     <Label htmlFor="displacedLocation">موقع النزوح</Label>
                     <Input
                       id="displacedLocation"
+                      name="displacedLocation"
+                      value={formData.displacedLocation}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
                       className="text-right"
-                      {...form.register("displacedLocation")}
                     />
                   </div>
                 )}
 
-                {(!isEditing || form.watch("warDamage2023")) && (
+                {(!isEditing || formData.warDamage2023) && (
                   <div className="space-y-4">
                     <div>
                       <Label>نوع الأضرار</Label>
