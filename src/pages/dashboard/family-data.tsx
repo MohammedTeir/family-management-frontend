@@ -72,20 +72,6 @@ const familySchema = z.object({
   spouseHasWarInjury: z.boolean().default(false),
   spouseWarInjuryType: z.string({ invalid_type_error: "نوع إصابة الحرب للزوج/ة يجب أن يكون نص" }).nullable().optional(),
   headGender: z.enum(['male', 'female']).optional(),
-}).refine((data) => {
-  // If head is female (wife), then husband (spouse) is mandatory
-  if (data.headGender === 'female') {
-    if (!data.spouseName || data.spouseName.trim() === "") {
-      return false;
-    }
-    if (!data.spouseID || data.spouseID.trim() === "") {
-      return false;
-    }
-  }
-  return true;
-}, {
-  message: "بيانات الزوج مطلوبة عندما تكون رب الأسرة أنثى",
-  path: ["spouseName"] // This will show the error on the spouseName field
 });
 
 type FamilyFormData = z.infer<typeof familySchema>;
@@ -170,7 +156,6 @@ export default function FamilyData() {
 
   const form = useForm<FamilyFormData>({
     resolver: zodResolver(familySchema),
-    mode: "onBlur", // Validate on blur to provide feedback when fields are left
     defaultValues: {
       husbandName: "",
       husbandID: "",
@@ -457,21 +442,7 @@ export default function FamilyData() {
         requiredFields.includes(field)
       );
 
-      // Check if head is female and spouse fields are missing
-      const headGender = form.watch("headGender") || family?.headGender || "male";
-      let spouseNameError = false;
-      let spouseIdError = false;
-
-      if (headGender === 'female') {
-        if (errors.spouseName) {
-          spouseNameError = true;
-        }
-        if (errors.spouseID) {
-          spouseIdError = true;
-        }
-      }
-
-      if (requiredErrorFields.length > 0 || spouseNameError || spouseIdError) {
+      if (requiredErrorFields.length > 0) {
         // Map field names to Arabic labels
         const fieldLabels: { [key: string]: string } = {
           husbandName: 'اسم رب/ربة الأسرة',
@@ -486,14 +457,7 @@ export default function FamilyData() {
           numFemales: 'عدد الإناث',
         };
 
-        let errorFieldNames = requiredErrorFields.map(field => fieldLabels[field] || field);
-
-        if (spouseNameError) {
-          errorFieldNames.push('اسم الزوج');
-        }
-        if (spouseIdError) {
-          errorFieldNames.push('رقم هوية الزوج');
-        }
+        const errorFieldNames = requiredErrorFields.map(field => fieldLabels[field] || field);
 
         toast({
           title: "خطأ في التحقق",
@@ -501,7 +465,6 @@ export default function FamilyData() {
           variant: "destructive",
         });
       }
-      // Note: We removed the general error message as requested
     }
   );
 
