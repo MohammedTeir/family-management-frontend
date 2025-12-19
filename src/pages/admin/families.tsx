@@ -164,10 +164,12 @@ const AdminFamilies = memo(function AdminFamilies() {
   });
 
   // 🚀 PERFORMANCE: Memoize unique branches extraction
-  const branchOptions = useMemo(() =>
-    Array.from(new Set((families || []).map((f: any) => f.branch).filter(Boolean))),
-    [families]
-  );
+  const branchOptions = useMemo(() => {
+    const branches = Array.from(new Set((families || []).map((f: any) => f.branch).filter(Boolean)));
+    // Add special option for families with no branch
+    branches.push('no_branch');
+    return branches;
+  }, [families]);
 
   // 🚀 PERFORMANCE: Memoize expensive filtering logic
   const filteredFamilies = useMemo(() => {
@@ -185,7 +187,8 @@ const AdminFamilies = memo(function AdminFamilies() {
         family.husbandID.includes(searchTerm) ||
         lowerBranchArabic.includes(lowerSearchTerm);
 
-      const matchesBranch = branchFilter === 'all' || family.branch === branchFilter;
+      const matchesBranch = branchFilter === 'all' ||
+                           (branchFilter === 'no_branch' ? !family.branch : family.branch === branchFilter);
       const matchesDisplaced = displacedFilter === 'all' || (displacedFilter === 'yes' ? family.isDisplaced : !family.isDisplaced);
       const matchesDamaged = damagedFilter === 'all' || (damagedFilter === 'yes' ? family.warDamage2023 : !family.warDamage2023);
       const matchesAbroad = abroadFilter === 'all' || (abroadFilter === 'yes' ? family.isAbroad : !family.isAbroad);
@@ -1012,6 +1015,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <SelectItem value="abuawda">ابو عودة</SelectItem>
                         <SelectItem value="abunasr">ابو نصر</SelectItem>
                         <SelectItem value="abumatar">ابو مطر</SelectItem>
+                        <SelectItem value="no_branch">لا يوجد فرع محدد</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
