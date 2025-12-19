@@ -170,6 +170,7 @@ export default function FamilyData() {
 
   const form = useForm<FamilyFormData>({
     resolver: zodResolver(familySchema),
+    mode: "onBlur", // Validate on blur to provide feedback when fields are left
     defaultValues: {
       husbandName: "",
       husbandID: "",
