@@ -63,6 +63,7 @@ export default function AdminMembers() {
               familyId: family.id,
               familyName: family.husbandName,
               familyPrimaryPhone: family.primaryPhone,
+              familySecondaryPhone: family.secondaryPhone,
               branch: family.branch,
               socialStatus: family.socialStatus,
               age,
@@ -104,6 +105,7 @@ export default function AdminMembers() {
           familyId: orphan.familyId,
           familyName: associatedFamily?.husbandName || 'غير محدد',
           familyPrimaryPhone: associatedFamily?.primaryPhone,
+          familySecondaryPhone: associatedFamily?.secondaryPhone,
           branch: associatedFamily?.branch || 'غير محدد',
           socialStatus: associatedFamily?.socialStatus || 'غير محدد',
           age,
@@ -264,6 +266,8 @@ export default function AdminMembers() {
     { key: 'memberID', label: 'رقم الهوية', checked: true },
     { key: 'birthDate', label: 'تاريخ الميلاد', checked: true },
     { key: 'familyName', label: 'اسم رب الأسرة', checked: true },
+    { key: 'familyPrimaryPhone', label: 'رقم الجوال الأساسي', checked: true },
+    { key: 'familySecondaryPhone', label: 'رقم الجوال البديل', checked: true },
     { key: 'type', label: 'حالة الفرد', checked: true },
     { key: 'branch', label: 'فرع العائلة', checked: true },
     { key: 'socialStatus', label: 'الحالة الاجتماعية', checked: true },
@@ -375,6 +379,8 @@ export default function AdminMembers() {
             case 'memberID': return member.memberID || '';
             case 'birthDate': return member.birthDate || '';
             case 'familyName': return member.familyName || '';
+            case 'familyPrimaryPhone': return member.familyPrimaryPhone || '';
+            case 'familySecondaryPhone': return member.familySecondaryPhone || '';
             case 'type': return member.type === 'member' ? 'فرد عائلة' : 'يتيم';
             case 'branch': return getBranchInArabic(member.branch) || ''; // Fixed to be in Arabic
             case 'socialStatus': return getSocialStatusInArabic(member.socialStatus) || ''; // Fixed to be in Arabic
@@ -412,7 +418,8 @@ export default function AdminMembers() {
           return 28; // Medium-wide for Arabic text
         }
         // Medium columns for phone numbers
-        else if (columnKey.includes('Phone') || columnKey.includes('جوال')) {
+        else if (columnKey.includes('Phone') || columnKey.includes('جوال') ||
+                 columnKey.includes('primaryPhone') || columnKey.includes('secondaryPhone')) {
           return 24; // Medium for phone numbers
         }
         // Medium-narrow columns for IDs and dates
