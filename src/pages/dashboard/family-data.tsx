@@ -8,9 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -27,54 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Header } from "@/components/layout/header";
-
-const familySchema = z.object({
-  husbandName: z.string({ required_error: "الاسم مطلوب", invalid_type_error: "الاسم يجب أن يكون نص" }).min(1, "الاسم مطلوب"),
-  husbandID: z.string({ required_error: "رقم الهوية مطلوب", invalid_type_error: "رقم الهوية يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم الهوية يجب أن يكون 9 أرقام"),
-  husbandBirthDate: z.string({ required_error: "تاريخ الميلاد مطلوب", invalid_type_error: "تاريخ الميلاد يجب أن يكون نص" }).min(1, "تاريخ الميلاد مطلوب"),
-  husbandJob: z.string({ required_error: "المهنة مطلوبة", invalid_type_error: "المهنة يجب أن تكون نص" }).min(1, "المهنة مطلوبة"),
-  primaryPhone: z.string({ required_error: "رقم الجوال مطلوب", invalid_type_error: "رقم الجوال يجب أن يكون نص" }).regex(/^(?:\d{9}|\d{10})$/, "رقم الجوال يجب أن يكون 9 أو 10 أرقام"),
-  secondaryPhone: z.string({ invalid_type_error: "رقم الجوال البديل يجب أن يكون نص" }).nullable().optional(),
-  spouseName: z.string({ invalid_type_error: "اسم الزوج/ة يجب أن يكون نص" }).nullable().optional(),
-  spouseID: z.string({ invalid_type_error: "رقم هوية الزوج/ة يجب أن يكون نص" }).regex(/^\d{9}$/, "رقم هوية الزوج/ة يجب أن يكون 9 أرقام").nullable().optional(),
-  spouseBirthDate: z.string({ invalid_type_error: "تاريخ ميلاد الزوج/ة يجب أن يكون نص" }).nullable().optional(),
-  spouseJob: z.string({ invalid_type_error: "مهنة الزوج/ة يجب أن تكون نص" }).nullable().optional(),
-  spousePregnant: z.boolean({ invalid_type_error: "حقل الحمل يجب أن يكون صحيح أو خطأ" }).default(false),
-  originalResidence: z.string({ required_error: "السكن الأصلي مطلوب", invalid_type_error: "السكن الأصلي يجب أن يكون نص" }).min(1, "السكن الأصلي مطلوب"),
-  currentHousing: z.string({ required_error: "السكن الحالي مطلوب", invalid_type_error: "السكن الحالي يجب أن يكون نص" }).min(1, "السكن الحالي مطلوب"),
-  isDisplaced: z.boolean({ invalid_type_error: "حقل النزوح يجب أن يكون صحيح أو خطأ" }).default(false),
-  displacedLocation: z.string({ invalid_type_error: "موقع النزوح يجب أن يكون نص" }).nullable().optional(),
-  isAbroad: z.boolean({ invalid_type_error: "حقل الاغتراب يجب أن يكون صحيح أو خطأ" }).default(false),
-  warDamage2023: z.boolean({ invalid_type_error: "حقل أضرار 2023 يجب أن يكون صحيح أو خطأ" }).default(false),
-  warDamageDescription: z.string({ invalid_type_error: "وصف الأضرار يجب أن يكون نص" }).nullable().optional(),
-  branch: z.string({ invalid_type_error: "الفرع يجب أن يكون نص" }).nullable().optional(),
-  landmarkNear: z.string({ invalid_type_error: "أقرب معلم يجب أن يكون نص" }).nullable().optional(),
-  socialStatus: z.string({ invalid_type_error: "الحالة الاجتماعية يجب أن يكون نص" }).nullable().optional(),
-  totalMembers: z.coerce.number({ required_error: "عدد الأفراد مطلوب", invalid_type_error: "عدد الأفراد يجب أن يكون رقم" }).min(1, "عدد الأفراد مطلوب"),
-  numMales: z.coerce.number({ required_error: "عدد الذكور مطلوب", invalid_type_error: "عدد الذكور يجب أن يكون رقم" }).min(0, "عدد الذكور مطلوب"),
-  numFemales: z.coerce.number({ required_error: "عدد الإناث مطلوب", invalid_type_error: "عدد الإنات يجب أن يكون رقم" }).min(0, "عدد الإنات مطلوب"),
-  // Chronic illness for head of household
-  hasChronicIllness: z.boolean().default(false),
-  chronicIllnessType: z.string({ invalid_type_error: "نوع المرض المزمن يجب أن يكون نص" }).nullable().optional(),
-  // Chronic illness for spouse
-  spouseHasChronicIllness: z.boolean().default(false),
-  spouseChronicIllnessType: z.string({ invalid_type_error: "نوع مرض الزوج/ة المزمن يجب أن يكون نص" }).nullable().optional(),
-  // Disability for head of household
-  hasDisability: z.boolean().default(false),
-  disabilityType: z.string({ invalid_type_error: "نوع الإعاقة يجب أن يكون نص" }).nullable().optional(),
-  // Disability for spouse
-  spouseHasDisability: z.boolean().default(false),
-  spouseDisabilityType: z.string({ invalid_type_error: "نوع إعاقة الزوج/ة يجب أن يكون نص" }).nullable().optional(),
-  // War injury for head of household
-  hasWarInjury: z.boolean().default(false),
-  warInjuryType: z.string({ invalid_type_error: "نوع إصابة الحرب يجب أن يكون نص" }).nullable().optional(),
-  // War injury for spouse
-  spouseHasWarInjury: z.boolean().default(false),
-  spouseWarInjuryType: z.string({ invalid_type_error: "نوع إصابة الحرب للزوج/ة يجب أن يكون نص" }).nullable().optional(),
-  headGender: z.enum(['male', 'female']).optional(),
-});
-
-type FamilyFormData = z.infer<typeof familySchema>;
 
 export default function FamilyData() {
   const { toast } = useToast();
@@ -154,60 +103,52 @@ export default function FamilyData() {
   const [, navigate] = useLocation();
   const { settings } = useSettingsContext();
 
-  const form = useForm<FamilyFormData>({
-    resolver: zodResolver(familySchema),
-    defaultValues: {
-      husbandName: "",
-      husbandID: "",
-      husbandBirthDate: "",
-      husbandJob: "",
-      primaryPhone: "",
-      secondaryPhone: "",
-      spouseName: null,
-      spouseID: null,
-      spouseBirthDate: null,
-      spouseJob: null,
-      spousePregnant: false,
-      originalResidence: "",
-      currentHousing: "",
-      isDisplaced: false,
-      displacedLocation: null,
-      isAbroad: false,
-      warDamage2023: false,
-      warDamageDescription: null,
-      branch: null,
-      landmarkNear: "",
-      socialStatus: null,
-      totalMembers: 0,
-      numMales: 0,
-      numFemales: 0,
-      hasChronicIllness: false,
-      chronicIllnessType: "",
-      spouseHasChronicIllness: false,
-      spouseChronicIllnessType: "",
-      hasDisability: false,
-      disabilityType: "",
-      spouseHasDisability: false,
-      spouseDisabilityType: "",
-      hasWarInjury: false,
-      warInjuryType: "",
-      spouseHasWarInjury: false,
-      spouseWarInjuryType: "",
-      headGender: "male", // Default value
-    },
+  // State for form data using controlled components
+  const [formData, setFormData] = useState({
+    husbandName: "",
+    husbandID: "",
+    husbandBirthDate: "",
+    husbandJob: "",
+    primaryPhone: "",
+    secondaryPhone: "",
+    spouseName: "",
+    spouseID: "",
+    spouseBirthDate: "",
+    spouseJob: "",
+    spousePregnant: false,
+    originalResidence: "",
+    currentHousing: "",
+    isDisplaced: false,
+    displacedLocation: "",
+    isAbroad: false,
+    warDamage2023: false,
+    warDamageDescription: "",
+    branch: "",
+    landmarkNear: "",
+    socialStatus: "",
+    totalMembers: 0,
+    numMales: 0,
+    numFemales: 0,
+    hasChronicIllness: false,
+    chronicIllnessType: "",
+    spouseHasChronicIllness: false,
+    spouseChronicIllnessType: "",
+    hasDisability: false,
+    disabilityType: "",
+    spouseHasDisability: false,
+    spouseDisabilityType: "",
+    hasWarInjury: false,
+    warInjuryType: "",
+    spouseHasWarInjury: false,
+    spouseWarInjuryType: "",
+    headGender: "male",
   });
-
-  // Track current form values to ensure UI updates (must be after form declaration)
-  const currentBranch = form.watch("branch");
-  const currentSocialStatus = form.watch("socialStatus");
-  const currentWarDamageDescription = form.watch("warDamageDescription");
-
 
   useEffect(() => {
     if (family) {
-      // Reset form with proper values
+      // Set form data with proper values
       const headGender = family.headGender || family.userGender || 'male';
-      const formData = {
+      setFormData({
         ...family,
         headGender: headGender,
         // Handle head of household fields (these should use original values, not transformed)
@@ -239,11 +180,9 @@ export default function FamilyData() {
         disabilityType: family.disabilityType || "",
         hasWarInjury: family.hasWarInjury || false,
         warInjuryType: family.warInjuryType || "",
-      };
-
-      form.reset(formData);
+      });
     }
-  }, [family, form]);
+  }, [family]);
 
 
   useEffect(() => {
@@ -257,7 +196,7 @@ export default function FamilyData() {
   }, [settings.siteTitle, settings.language]);
 
   const updateFamilyMutation = useMutation({
-    mutationFn: async (data: FamilyFormData) => {
+    mutationFn: async (data: any) => {
       const res = await apiRequest("PUT", `/api/family/${family.id}`, data);
       return res.data;
     },
@@ -279,7 +218,7 @@ export default function FamilyData() {
   });
 
   const createFamilyMutation = useMutation({
-    mutationFn: async (data: FamilyFormData) => {
+    mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/family", data);
       return res.data;
     },
@@ -332,28 +271,54 @@ export default function FamilyData() {
     },
   });
 
-  const onSubmit = (data: FamilyFormData) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Basic validation for required fields
+    const requiredFields = [
+      { field: 'husbandName', label: 'اسم رب/ربة الأسرة' },
+      { field: 'husbandID', label: 'رقم هوية رب/ربة الأسرة' },
+      { field: 'husbandJob', label: 'مهنة رب/ربة الأسرة' },
+      { field: 'primaryPhone', label: 'الهاتف الأساسي' },
+      { field: 'originalResidence', label: 'السكن الأصلي' },
+      { field: 'currentHousing', label: 'السكن الحالي' },
+      { field: 'totalMembers', label: 'إجمالي الأفراد' },
+      { field: 'numMales', label: 'عدد الذكور' },
+      { field: 'numFemales', label: 'عدد الإناث' }
+    ];
+
+    const emptyFields = requiredFields.filter(req => !formData[req.field as keyof typeof formData]);
+
+    if (emptyFields.length > 0) {
+      const fieldNames = emptyFields.map(field => field.label);
+      toast({
+        title: "خطأ في التحقق",
+        description: `يرجى مراجعة الحقول المطلوبة: ${fieldNames.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Clean up optional fields that might be empty strings
     const cleanedData = {
-      ...data,
-      // Convert empty strings appropriately based on each field's Zod schema
-      // For strings: send empty string "" instead of undefined/null to ensure backend receives the update
-      secondaryPhone: data.secondaryPhone || "",        // Send empty string to backend to clear value
-      spouseName: data.spouseName || null,              // .nullable().optional() - can be null
-      spouseID: data.spouseID || "",                    // Send empty string to backend to clear value
-      spouseBirthDate: data.spouseBirthDate || null,    // .nullable().optional() - can be null
-      spouseJob: data.spouseJob || "",                  // Send empty string to backend to clear value
-      displacedLocation: data.displacedLocation || null, // .nullable().optional() - can be null
-      warDamageDescription: data.warDamageDescription || null, // .nullable().optional() - can be null
-      branch: data.branch || null,                      // .nullable().optional() - can be null
-      landmarkNear: data.landmarkNear || "",            // Send empty string to backend to clear value
-      socialStatus: data.socialStatus || null,          // .nullable().optional() - can be null
-      chronicIllnessType: data.chronicIllnessType || "", // Send empty string to backend to clear value
-      spouseChronicIllnessType: data.spouseChronicIllnessType || "", // Send empty string to backend to clear value
-      disabilityType: data.disabilityType || "",        // Send empty string to backend to clear value
-      spouseDisabilityType: data.spouseDisabilityType || "", // Send empty string to backend to clear value
-      warInjuryType: data.warInjuryType || "",          // Send empty string to backend to clear value
-      spouseWarInjuryType: data.spouseWarInjuryType || "", // Send empty string to backend to clear value
+      ...formData,
+      // Convert empty strings appropriately
+      secondaryPhone: formData.secondaryPhone || "",
+      spouseName: formData.spouseName || null,
+      spouseID: formData.spouseID || "",
+      spouseBirthDate: formData.spouseBirthDate || null,
+      spouseJob: formData.spouseJob || "",
+      displacedLocation: formData.displacedLocation || null,
+      warDamageDescription: formData.warDamageDescription || null,
+      branch: formData.branch || null,
+      landmarkNear: formData.landmarkNear || "",
+      socialStatus: formData.socialStatus || null,
+      chronicIllnessType: formData.chronicIllnessType || "",
+      spouseChronicIllnessType: formData.spouseChronicIllnessType || "",
+      disabilityType: formData.disabilityType || "",
+      spouseDisabilityType: formData.spouseDisabilityType || "",
+      warInjuryType: formData.warInjuryType || "",
+      spouseWarInjuryType: formData.spouseWarInjuryType || "",
     };
 
     // Map form fields back to backend format
@@ -366,32 +331,20 @@ export default function FamilyData() {
       husbandBirthDate: cleanedData.husbandBirthDate,
       husbandJob: cleanedData.husbandJob,
       // Map spouse fields back to wife fields for backend
-      wifeName: cleanedData.spouseName || null,
-      wifeID: cleanedData.spouseID || null,
-      wifeBirthDate: cleanedData.spouseBirthDate || null,
-      wifeJob: cleanedData.spouseJob || null,
-      wifePregnant: cleanedData.spousePregnant || false,
-      wifeHasChronicIllness: cleanedData.spouseHasChronicIllness || false,
-      wifeChronicIllnessType: cleanedData.spouseChronicIllnessType || null,
-      wifeHasDisability: cleanedData.spouseHasDisability || false,
-      wifeDisabilityType: cleanedData.spouseDisabilityType || null,
-      wifeHasWarInjury: cleanedData.spouseHasWarInjury || false,
-      wifeWarInjuryType: cleanedData.spouseWarInjuryType || null,
+      wifeName: cleanedData.spouseName,
+      wifeID: cleanedData.spouseID,
+      wifeBirthDate: cleanedData.spouseBirthDate,
+      wifeJob: cleanedData.spouseJob,
+      wifePregnant: cleanedData.spousePregnant,
+      wifeHasChronicIllness: cleanedData.spouseHasChronicIllness,
+      wifeChronicIllnessType: cleanedData.spouseChronicIllnessType,
+      wifeHasDisability: cleanedData.spouseHasDisability,
+      wifeDisabilityType: cleanedData.spouseDisabilityType,
+      wifeHasWarInjury: cleanedData.spouseHasWarInjury,
+      wifeWarInjuryType: cleanedData.spouseWarInjuryType,
       // Head of household war injury fields
-      hasWarInjury: cleanedData.hasWarInjury || false,
-      warInjuryType: cleanedData.warInjuryType || null,
-      // Remove form-specific field names that aren't expected by backend
-      spouseName: undefined,
-      spouseID: undefined,
-      spouseBirthDate: undefined,
-      spouseJob: undefined,
-      spousePregnant: undefined,
-      spouseHasChronicIllness: undefined,
-      spouseChronicIllnessType: undefined,
-      spouseHasDisability: undefined,
-      spouseDisabilityType: undefined,
-      spouseHasWarInjury: undefined,
-      spouseWarInjuryType: undefined,
+      hasWarInjury: cleanedData.hasWarInjury,
+      warInjuryType: cleanedData.warInjuryType,
     };
 
     // Safeguard: Ensure we don't send empty values for existing family
@@ -425,48 +378,24 @@ export default function FamilyData() {
     }
   };
 
-  // Handle submission with validation error toast
-  const handleFormSubmit = form.handleSubmit(
-    onSubmit,
-    // onError callback for validation errors
-    (errors) => {
-      // Define the actual required fields based on the schema (no .optional() or .nullable())
-      const requiredFields = [
-        'husbandName', 'husbandID', 'husbandBirthDate', 'husbandJob',
-        'primaryPhone', 'originalResidence', 'currentHousing',
-        'totalMembers', 'numMales', 'numFemales'
-      ];
+  // Handle input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
 
-      // Only include required fields that have validation errors
-      const requiredErrorFields = Object.keys(errors).filter(field =>
-        requiredFields.includes(field)
-      );
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
 
-      if (requiredErrorFields.length > 0) {
-        // Map field names to Arabic labels
-        const fieldLabels: { [key: string]: string } = {
-          husbandName: 'اسم رب/ربة الأسرة',
-          husbandID: 'رقم هوية رب/ربة الأسرة',
-          husbandJob: 'مهنة رب/ربة الأسرة',
-          husbandBirthDate: 'تاريخ ميلاد رب/ربة الأسرة',
-          primaryPhone: 'الهاتف الأساسي',
-          originalResidence: 'السكن الأصلي',
-          currentHousing: 'السكن الحالي',
-          totalMembers: 'إجمالي الأفراد',
-          numMales: 'عدد الذكور',
-          numFemales: 'عدد الإناث',
-        };
-
-        const errorFieldNames = requiredErrorFields.map(field => fieldLabels[field] || field);
-
-        toast({
-          title: "خطأ في التحقق",
-          description: `يرجى مراجعة الحقول المطلوبة: ${errorFieldNames.join(', ')}`,
-          variant: "destructive",
-        });
-      }
-    }
-  );
+  // Handle switch changes
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
 
 
   // Helper function to format date for display
@@ -519,7 +448,7 @@ export default function FamilyData() {
             <span className="text-sm sm:text-base">عرض أفراد الأسرة</span>
           </Button>
         </Link>
-        <form onSubmit={handleFormSubmit} className="space-y-6 sm:space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           {/* Husband Information */}
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -541,30 +470,24 @@ export default function FamilyData() {
                   <Label htmlFor="husbandName">الاسم الرباعي *</Label>
                   <Input
                     id="husbandName"
+                    name="husbandName"
+                    value={formData.husbandName}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("husbandName")}
                   />
-                  {form.formState.errors.husbandName && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.husbandName.message}
-                    </p>
-                  )}
                 </div>
 
                 <div>
                   <Label htmlFor="husbandID">رقم الهوية *</Label>
                   <Input
                     id="husbandID"
+                    name="husbandID"
+                    value={formData.husbandID}
+                    onChange={handleInputChange}
                     disabled={true}
                     className="text-right"
-                    {...form.register("husbandID")}
                   />
-                  {form.formState.errors.husbandID && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.husbandID.message}
-                    </p>
-                  )}
                 </div>
 
                 <div>
@@ -572,13 +495,15 @@ export default function FamilyData() {
                   <div className="flex items-center space-x-2 space-x-reverse">
                   <Input
                     id="husbandBirthDate"
+                    name="husbandBirthDate"
                     type="date"
+                    value={formData.husbandBirthDate}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
-                    {...form.register("husbandBirthDate")}
                   />
-                    {form.watch("husbandBirthDate") && (
+                    {formData.husbandBirthDate && (
                       <Badge variant="outline">
-                        {calculateDetailedAge(form.watch("husbandBirthDate"))}
+                        {calculateDetailedAge(formData.husbandBirthDate)}
                       </Badge>
                     )}
                   </div>
@@ -588,17 +513,19 @@ export default function FamilyData() {
                   <Label htmlFor="husbandJob">المهنة *</Label>
                   <Input
                     id="husbandJob"
+                    name="husbandJob"
+                    value={formData.husbandJob}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("husbandJob")}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="headGender">الجنس</Label>
                   <Select
-                    value={form.watch("headGender") || family?.userGender || "male"}
-                    onValueChange={(value) => form.setValue("headGender", value)}
+                    value={formData.headGender}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, headGender: value }))}
                     disabled={!isEditing}
                     dir="rtl"
                   >
@@ -616,9 +543,11 @@ export default function FamilyData() {
                   <Label htmlFor="primaryPhone">رقم الجوال الأساسي *</Label>
                   <Input
                     id="primaryPhone"
+                    name="primaryPhone"
+                    value={formData.primaryPhone}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("primaryPhone")}
                   />
                 </div>
 
@@ -626,15 +555,12 @@ export default function FamilyData() {
                   <Label htmlFor="secondaryPhone">رقم الجوال البديل</Label>
                   <Input
                     id="secondaryPhone"
+                    name="secondaryPhone"
+                    value={formData.secondaryPhone}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("secondaryPhone")}
                   />
-                  {form.formState.errors.secondaryPhone && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.secondaryPhone.message}
-                    </p>
-                  )}
                 </div>
 
                 {/* Health switches */}
@@ -645,8 +571,8 @@ export default function FamilyData() {
                         <Switch
                           id="hasChronicIllness"
                           disabled={!isEditing}
-                          checked={form.watch("hasChronicIllness")}
-                          onCheckedChange={(checked) => form.setValue("hasChronicIllness", checked)}
+                          checked={formData.hasChronicIllness}
+                          onCheckedChange={(checked) => handleSwitchChange("hasChronicIllness", checked)}
                         />
                         <Label htmlFor="hasChronicIllness" className="cursor-pointer">يعاني من مرض مزمن</Label>
                       </div>
@@ -657,8 +583,8 @@ export default function FamilyData() {
                         <Switch
                           id="hasDisability"
                           disabled={!isEditing}
-                          checked={form.watch("hasDisability")}
-                          onCheckedChange={(checked) => form.setValue("hasDisability", checked)}
+                          checked={formData.hasDisability}
+                          onCheckedChange={(checked) => handleSwitchChange("hasDisability", checked)}
                         />
                         <Label htmlFor="hasDisability" className="cursor-pointer">يعاني من إعاقة</Label>
                       </div>
@@ -669,8 +595,8 @@ export default function FamilyData() {
                         <Switch
                           id="hasWarInjury"
                           disabled={!isEditing}
-                          checked={form.watch("hasWarInjury")}
-                          onCheckedChange={(checked) => form.setValue("hasWarInjury", checked)}
+                          checked={formData.hasWarInjury}
+                          onCheckedChange={(checked) => handleSwitchChange("hasWarInjury", checked)}
                         />
                         <Label htmlFor="hasWarInjury" className="cursor-pointer">يعاني من إصابة حرب</Label>
                       </div>
@@ -678,49 +604,55 @@ export default function FamilyData() {
                   </div>
                 </div>
 
-                {form.watch("hasChronicIllness") && (
+                {formData.hasChronicIllness && (
                   <div className="sm:col-span-2">
                     <Label htmlFor="chronicIllnessType">نوع المرض المزمن</Label>
                     <Input
                       id="chronicIllnessType"
+                      name="chronicIllnessType"
                       placeholder="اذكر نوع المرض المزمن"
+                      value={formData.chronicIllnessType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("chronicIllnessType")}
                     />
                   </div>
                 )}
 
-                {form.watch("hasDisability") && (
+                {formData.hasDisability && (
                   <div className="sm:col-span-2">
                     <Label htmlFor="disabilityType">نوع الإعاقة</Label>
                     <Input
                       id="disabilityType"
+                      name="disabilityType"
                       placeholder="اذكر نوع الإعاقة"
+                      value={formData.disabilityType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("disabilityType")}
                     />
                   </div>
                 )}
 
-                {form.watch("hasWarInjury") && (
+                {formData.hasWarInjury && (
                   <div className="sm:col-span-2">
                     <Label htmlFor="warInjuryType">نوع إصابة الحرب</Label>
                     <Input
                       id="warInjuryType"
+                      name="warInjuryType"
                       placeholder="اذكر نوع إصابة الحرب"
+                      value={formData.warInjuryType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("warInjuryType")}
                     />
                   </div>
                 )}
 
-                {(form.watch("headGender") || family?.headGender || "male") === "female" && ( // Show pregnancy field when head is female (the head herself could be pregnant)
+                {(formData.headGender || family?.headGender || "male") === "female" && ( // Show pregnancy field when head is female (the head herself could be pregnant)
                 <div className="flex items-center space-x-2 space-x-reverse">
                   <Switch
                     id="spousePregnant"
                     disabled={!isEditing}
-                    checked={form.watch("spousePregnant")}
-                    onCheckedChange={(checked) => form.setValue("spousePregnant", checked)}
+                    checked={formData.spousePregnant}
+                    onCheckedChange={(checked) => handleSwitchChange("spousePregnant", checked)}
                   />
                   <Label htmlFor="spousePregnant">حالة الحمل (ربة الأسرة)</Label>
                 </div>
@@ -736,59 +668,57 @@ export default function FamilyData() {
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="text-lg sm:text-xl">
-                {(form.watch("headGender") || family?.headGender || "male") === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
+                {(formData.headGender || family?.headGender || "male") === "female" ? "بيانات الزوج" : "بيانات الزوجة"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="spouseName">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "اسم الزوج *" : "اسم الزوجة"}</Label>
+                  <Label htmlFor="spouseName">{(formData.headGender || family?.headGender || "male") === "female" ? "اسم الزوج" : "اسم الزوجة"}</Label>
                   <Input
                     id="spouseName"
+                    name="spouseName"
+                    value={formData.spouseName}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("spouseName")}
                   />
-                  {form.formState.errors.spouseName && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.spouseName.message}
-                    </p>
-                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="spouseID">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "رقم هوية الزوج *" : "رقم هوية الزوجة"}</Label>
+                  <Label htmlFor="spouseID">{(formData.headGender || family?.headGender || "male") === "female" ? "رقم هوية الزوج" : "رقم هوية الزوجة"}</Label>
                   <Input
                     id="spouseID"
+                    name="spouseID"
+                    value={formData.spouseID}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("spouseID")}
                   />
-                  {form.formState.errors.spouseID && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.spouseID.message}
-                    </p>
-                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="spouseBirthDate">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "تاريخ ميلاد الزوج" : "تاريخ ميلاد الزوجة"}</Label>
+                  <Label htmlFor="spouseBirthDate">{(formData.headGender || family?.headGender || "male") === "female" ? "تاريخ ميلاد الزوج" : "تاريخ ميلاد الزوجة"}</Label>
                   <Input
                     id="spouseBirthDate"
+                    name="spouseBirthDate"
                     type="date"
+                    value={formData.spouseBirthDate}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("spouseBirthDate")}
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="spouseJob">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "مهنة الزوج" : "مهنة الزوجة"}</Label>
+                  <Label htmlFor="spouseJob">{(formData.headGender || family?.headGender || "male") === "female" ? "مهنة الزوج" : "مهنة الزوجة"}</Label>
                   <Input
                     id="spouseJob"
+                    name="spouseJob"
+                    value={formData.spouseJob}
+                    onChange={handleInputChange}
                     disabled={!isEditing}
                     className="text-right"
-                    {...form.register("spouseJob")}
                   />
                 </div>
 
@@ -800,10 +730,10 @@ export default function FamilyData() {
                         <Switch
                           id="spouseHasChronicIllness"
                           disabled={!isEditing}
-                          checked={form.watch("spouseHasChronicIllness")}
-                          onCheckedChange={(checked) => form.setValue("spouseHasChronicIllness", checked)}
+                          checked={formData.spouseHasChronicIllness}
+                          onCheckedChange={(checked) => handleSwitchChange("spouseHasChronicIllness", checked)}
                         />
-                        <Label htmlFor="spouseHasChronicIllness" className="cursor-pointer">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "يعاني من مرض مزمن" : "تعاني من مرض مزمن"}</Label>
+                        <Label htmlFor="spouseHasChronicIllness" className="cursor-pointer">{(formData.headGender || family?.headGender || "male") === "female" ? "يعاني من مرض مزمن" : "تعاني من مرض مزمن"}</Label>
                       </div>
                     </div>
 
@@ -812,10 +742,10 @@ export default function FamilyData() {
                         <Switch
                           id="spouseHasDisability"
                           disabled={!isEditing}
-                          checked={form.watch("spouseHasDisability")}
-                          onCheckedChange={(checked) => form.setValue("spouseHasDisability", checked)}
+                          checked={formData.spouseHasDisability}
+                          onCheckedChange={(checked) => handleSwitchChange("spouseHasDisability", checked)}
                         />
-                        <Label htmlFor="spouseHasDisability" className="cursor-pointer">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "يعاني من إعاقة" : "تعاني من إعاقة"}</Label>
+                        <Label htmlFor="spouseHasDisability" className="cursor-pointer">{(formData.headGender || family?.headGender || "male") === "female" ? "يعاني من إعاقة" : "تعاني من إعاقة"}</Label>
                       </div>
                     </div>
 
@@ -824,21 +754,21 @@ export default function FamilyData() {
                         <Switch
                           id="spouseHasWarInjury"
                           disabled={!isEditing}
-                          checked={form.watch("spouseHasWarInjury")}
-                          onCheckedChange={(checked) => form.setValue("spouseHasWarInjury", checked)}
+                          checked={formData.spouseHasWarInjury}
+                          onCheckedChange={(checked) => handleSwitchChange("spouseHasWarInjury", checked)}
                         />
-                        <Label htmlFor="spouseHasWarInjury" className="cursor-pointer">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "يعاني من إصابة حرب" : "تعاني من إصابة حرب"}</Label>
+                        <Label htmlFor="spouseHasWarInjury" className="cursor-pointer">{(formData.headGender || family?.headGender || "male") === "female" ? "يعاني من إصابة حرب" : "تعاني من إصابة حرب"}</Label>
                       </div>
                     </div>
 
-                    {(form.watch("headGender") || family?.headGender || "male") === "male" && ( // Show pregnancy field when head is male (so spouse could be pregnant)
+                    {(formData.headGender || family?.headGender || "male") === "male" && ( // Show pregnancy field when head is male (so spouse could be pregnant)
                     <div className="rounded-md border border-input p-3">
                       <div className="flex items-center space-x-2 space-x-reverse">
                         <Switch
                           id="spousePregnant"
                           disabled={!isEditing}
-                          checked={form.watch("spousePregnant")}
-                          onCheckedChange={(checked) => form.setValue("spousePregnant", checked)}
+                          checked={formData.spousePregnant}
+                          onCheckedChange={(checked) => handleSwitchChange("spousePregnant", checked)}
                         />
                         <Label htmlFor="spousePregnant" className="cursor-pointer">حالة الحمل (الزوجة)</Label>
                       </div>
@@ -847,38 +777,44 @@ export default function FamilyData() {
                   </div>
                 </div>
 
-                {form.watch("spouseHasChronicIllness") && (
+                {formData.spouseHasChronicIllness && (
                   <div className="sm:col-span-2">
-                    <Label htmlFor="spouseChronicIllnessType">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "نوع مرض الزوج المزمن" : "نوع مرض الزوجة المزمن"}</Label>
+                    <Label htmlFor="spouseChronicIllnessType">{(formData.headGender || family?.headGender || "male") === "female" ? "نوع مرض الزوج المزمن" : "نوع مرض الزوجة المزمن"}</Label>
                     <Input
                       id="spouseChronicIllnessType"
+                      name="spouseChronicIllnessType"
                       placeholder="اذكر نوع المرض المزمن"
+                      value={formData.spouseChronicIllnessType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("spouseChronicIllnessType")}
                     />
                   </div>
                 )}
 
-                {form.watch("spouseHasDisability") && (
+                {formData.spouseHasDisability && (
                   <div className="sm:col-span-2">
-                    <Label htmlFor="spouseDisabilityType">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "نوع إعاقة الزوج" : "نوع إعاقة الزوجة"}</Label>
+                    <Label htmlFor="spouseDisabilityType">{(formData.headGender || family?.headGender || "male") === "female" ? "نوع إعاقة الزوج" : "نوع إعاقة الزوجة"}</Label>
                     <Input
                       id="spouseDisabilityType"
+                      name="spouseDisabilityType"
                       placeholder="اذكر نوع الإعاقة"
+                      value={formData.spouseDisabilityType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("spouseDisabilityType")}
                     />
                   </div>
                 )}
 
-                {form.watch("spouseHasWarInjury") && (
+                {formData.spouseHasWarInjury && (
                   <div className="sm:col-span-2">
-                    <Label htmlFor="spouseWarInjuryType">{(form.watch("headGender") || family?.headGender || "male") === "female" ? "نوع إصابة الحرب للزوج" : "نوع إصابة الحرب للزوجة"}</Label>
+                    <Label htmlFor="spouseWarInjuryType">{(formData.headGender || family?.headGender || "male") === "female" ? "نوع إصابة الحرب للزوج" : "نوع إصابة الحرب للزوجة"}</Label>
                     <Input
                       id="spouseWarInjuryType"
+                      name="spouseWarInjuryType"
                       placeholder="اذكر نوع إصابة الحرب"
+                      value={formData.spouseWarInjuryType}
+                      onChange={handleInputChange}
                       disabled={!isEditing}
-                      {...form.register("spouseWarInjuryType")}
                     />
                   </div>
                 )}
@@ -1267,10 +1203,8 @@ export default function FamilyData() {
                         <>
                           <Select
                             disabled={!isEditing}
-                            value={currentWarDamageDescription || ""}
-                            onValueChange={(value) => {
-                              form.setValue("warDamageDescription", value);
-                            }}
+                            value={formData.warDamageDescription}
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, warDamageDescription: value }))}
                             dir="rtl"
                           >
                             <SelectTrigger className="text-right">
