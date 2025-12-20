@@ -309,7 +309,8 @@ const AdminFamilies = memo(function AdminFamilies() {
                          family.numMales !== undefined &&
                          family.numFemales !== null &&
                          family.numFemales !== undefined &&
-                         (!family.isDisplaced || (family.isDisplaced && family.displacedLocation));
+                         ((family.isDisplaced && family.displacedLocation) ||
+                          (!family.isDisplaced && family.currentHousing));
 
       const matchesCompleteness = completenessFilter === 'all' ||
                                  (completenessFilter === 'complete' && isComplete) ||
