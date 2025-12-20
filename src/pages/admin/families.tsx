@@ -319,7 +319,7 @@ const AdminFamilies = memo(function AdminFamilies() {
              matchesDamaged && matchesAbroad && matchesSocialStatus && matchesMembers &&
              matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness;
     });
-  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax]);
+  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax, completenessFilter]);
 
   // 🚀 PERFORMANCE: Memoize expensive max counts calculation
   const { maxSons, maxChildren, maxWives, maxOrphans } = useMemo(() => {
