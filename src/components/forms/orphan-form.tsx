@@ -48,7 +48,6 @@ const orphanSchema = z.object({
   originalAddress: z.string().min(1, "العنوان الاصلي مطلوب"),
   mobileNumber: z.string().regex(/^\d{10}$/, "رقم الجوال يجب أن يكون 10 أرقام").min(1, "رقم الجوال مطلوب"),
   backupMobileNumber: z.string().regex(/^\d{10}$/, "رقم الجوال الاحتياطي يجب أن يكون 10 أرقام").min(1, "رقم الجوال الاحتياطي مطلوب"),
-  image: z.string().optional(), // Optional image field
 });
 
 type OrphanFormData = z.infer<typeof orphanSchema>;
@@ -68,8 +67,6 @@ export default function OrphanForm({
   isLoading = false,
   isEdit = false
 }: OrphanFormProps) {
-  const [newImagePreview, setNewImagePreview] = useState<string | null>(null); // For newly selected image
-  // Don't use state for hasNewImage since it's determined by whether newImagePreview exists
 
 
   const form = useForm<OrphanFormData>({
@@ -98,20 +95,8 @@ export default function OrphanForm({
       originalAddress: initialData?.originalAddress || "",
       mobileNumber: initialData?.mobileNumber || "",
       backupMobileNumber: initialData?.backupMobileNumber || "",
-      image: initialData?.image || "",
     },
   });
-
-
-
-  // Clean up new image preview when component unmounts
-  useEffect(() => {
-    return () => {
-      if (newImagePreview && newImagePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(newImagePreview);
-      }
-    };
-  }, [newImagePreview]);
 
   const handleSubmit = (data: OrphanFormData) => {
     onSubmit(data);
@@ -513,6 +498,8 @@ export default function OrphanForm({
           )}
         </div>
 
+        {/* Image upload field is currently hidden - will be enabled later */}
+        {/*
         <div className="md:col-span-2">
           <Label htmlFor="image" className="text-sm sm:text-base font-medium">رفع صورة اليتيم</Label>
           <div className="mt-1">
@@ -615,6 +602,7 @@ export default function OrphanForm({
             </p>
           )}
         </div>
+        */}
       </div>
 
       <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 sm:space-x-reverse pt-4 sm:pt-6">

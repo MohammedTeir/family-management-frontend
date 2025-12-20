@@ -44,6 +44,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [customFileName, setCustomFileName] = useState('');
   const [memberAgeMin, setMemberAgeMin] = useState('');
   const [memberAgeMax, setMemberAgeMax] = useState('');
+  const [completenessFilter, setCompletenessFilter] = useState('all');
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -297,9 +298,26 @@ const AdminFamilies = memo(function AdminFamilies() {
 
       const matchesMemberAge = hasMatchingMemberAge || hasMatchingOrphanAge;
 
+      // Completeness filter - check if family has all required fields filled
+      const isComplete = family.husbandName &&
+                         family.husbandBirthDate &&
+                         family.primaryPhone &&
+                         family.originalResidence &&
+                         family.branch &&
+                         family.socialStatus &&
+                         family.numMales !== null &&
+                         family.numMales !== undefined &&
+                         family.numFemales !== null &&
+                         family.numFemales !== undefined &&
+                         (!family.isDisplaced || (family.isDisplaced && family.displacedLocation));
+
+      const matchesCompleteness = completenessFilter === 'all' ||
+                                 (completenessFilter === 'complete' && isComplete) ||
+                                 (completenessFilter === 'incomplete' && !isComplete);
+
       return matchesSearch && matchesBranch && matchesDisplaced &&
              matchesDamaged && matchesAbroad && matchesSocialStatus && matchesMembers &&
-             matchesPregnant && matchesChildren && matchesMemberAge;
+             matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness;
     });
   }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax]);
 
@@ -1127,6 +1145,19 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <SelectItem value="all">جميع الحالات</SelectItem>
                         <SelectItem value="yes">نعم</SelectItem>
                         <SelectItem value="no">لا</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">تحديث البيانات</label>
+                    <Select value={completenessFilter} onValueChange={setCompletenessFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الأسر</SelectItem>
+                        <SelectItem value="complete">البيانات مكتملة</SelectItem>
+                        <SelectItem value="incomplete">البيانات ناقصة</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
