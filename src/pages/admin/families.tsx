@@ -299,19 +299,23 @@ const AdminFamilies = memo(function AdminFamilies() {
       const matchesMemberAge = hasMatchingMemberAge || hasMatchingOrphanAge;
 
       // Completeness filter - check if family has all required fields filled
-      const isComplete = family.husbandName &&
+      // Required Fields for Completeness:
+      // 1. primaryPhone - Primary phone number (must exist)
+      // 2. currentHousing - Current housing status (must exist)
+      // 3. husbandBirthDate - Head of household birth date (must exist)
+      // 4. numMales and numFemales - Number of males and females (both must not be zero)
+      // Completeness Logic:
+      // - Complete: All required fields exist AND (numMales > 0 OR numFemales > 0)
+      // - Incomplete: Any required field is missing OR both numMales and numFemales are zero
+      // - All: Shows both complete and incomplete records
+      const isComplete = family.primaryPhone &&
+                         family.currentHousing &&
                          family.husbandBirthDate &&
-                         family.primaryPhone &&
-                         family.originalResidence &&
-                         family.branch &&
-                         family.socialStatus &&
                          family.numMales !== null &&
                          family.numMales !== undefined &&
                          family.numFemales !== null &&
                          family.numFemales !== undefined &&
-                         (family.numMales > 0 || family.numFemales > 0) &&
-                         (family.currentHousing ||
-                          (!family.currentHousing && family.isDisplaced && family.displacedLocation && family.displacedLocation.trim() !== ''));
+                         (family.numMales > 0 || family.numFemales > 0);
 
       const matchesCompleteness = completenessFilter === 'all' ||
                                  (completenessFilter === 'complete' && isComplete) ||
