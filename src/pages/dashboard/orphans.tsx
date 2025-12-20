@@ -519,8 +519,6 @@ export default function Orphans() {
                               <span className="text-muted-foreground">رقم الجوال:</span>
                               <p className="font-medium">{orphan.mobileNumber || 'غير محدد'}</p>
                             </div>
-                            {/* Image field is currently hidden - will be enabled later */}
-                            {/*
                             {orphan.image && (
                               <div className="col-span-2">
                                 <span className="text-muted-foreground">الصورة:</span>
@@ -533,7 +531,6 @@ export default function Orphans() {
                                 </div>
                               </div>
                             )}
-                            */}
                           </div>
                         </div>
                       </CardContent>
@@ -554,8 +551,7 @@ export default function Orphans() {
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">حالة الوفاة</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">اسم الوصي</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">رقم الجوال</th>
-                        {/* Image column is currently hidden - will be enabled later */}
-                        {/* <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">الصورة</th> */}
+                        <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">الصورة</th>
                         <th className="border border-gray-300 px-3 sm:px-4 py-2 text-right font-medium text-muted-foreground text-sm">الإجراءات</th>
                       </tr>
                     </thead>
@@ -579,8 +575,6 @@ export default function Orphans() {
                           </td>
                           <td className="border border-gray-300 px-3 sm:px-4 py-2 text-sm">{orphan.guardianName}</td>
                           <td className="border border-gray-300 px-3 sm:px-4 py-2 text-sm">{orphan.mobileNumber || 'غير محدد'}</td>
-                          {/* Image cell is currently hidden - will be enabled later */}
-                          {/*
                           <td className="border border-gray-300 px-3 sm:px-4 py-2 text-sm">
                             {orphan.image ? (
                               <img
@@ -592,7 +586,6 @@ export default function Orphans() {
                               <span className="text-muted-foreground text-xs">لا توجد صورة</span>
                             )}
                           </td>
-                          */}
                           <td className="border border-gray-300 px-3 sm:px-4 py-2">
                             <div className="flex space-x-1 sm:space-x-2 space-x-reverse">
                               <Button
