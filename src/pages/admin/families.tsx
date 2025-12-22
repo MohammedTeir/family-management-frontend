@@ -45,6 +45,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [memberAgeMin, setMemberAgeMin] = useState('');
   const [memberAgeMax, setMemberAgeMax] = useState('');
   const [completenessFilter, setCompletenessFilter] = useState('all');
+  const [hasRequestsFilter, setHasRequestsFilter] = useState('all');
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -321,11 +322,17 @@ const AdminFamilies = memo(function AdminFamilies() {
                                  (completenessFilter === 'complete' && isComplete) ||
                                  (completenessFilter === 'incomplete' && !isComplete);
 
+      // Requests filter logic
+      const hasRequests = Array.isArray(family.requests) && family.requests.length > 0;
+      const matchesHasRequests = hasRequestsFilter === 'all' ||
+                                (hasRequestsFilter === 'yes' && hasRequests) ||
+                                (hasRequestsFilter === 'no' && !hasRequests);
+
       return matchesSearch && matchesBranch && matchesDisplaced &&
              matchesDamaged && matchesAbroad && matchesSocialStatus && matchesMembers &&
-             matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness;
+             matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness && matchesHasRequests;
     });
-  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax, completenessFilter]);
+  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax, completenessFilter, hasRequestsFilter]);
 
   // 🚀 PERFORMANCE: Memoize expensive max counts calculation
   const { maxSons, maxChildren, maxWives, maxOrphans } = useMemo(() => {
@@ -1164,6 +1171,19 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <SelectItem value="all">جميع الأسر</SelectItem>
                         <SelectItem value="complete">البيانات مكتملة</SelectItem>
                         <SelectItem value="incomplete">البيانات ناقصة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">لديها طلبات</label>
+                    <Select value={hasRequestsFilter} onValueChange={setHasRequestsFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الأسر</SelectItem>
+                        <SelectItem value="yes">لديها طلبات</SelectItem>
+                        <SelectItem value="no">لا توجد طلبات</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
