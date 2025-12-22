@@ -66,11 +66,19 @@ export default function AdminRequests() {
   });
 
   const filteredRequests = Array.isArray(requests) ? requests.filter((request: any) => {
+    // Get family info to search by head name and ID
+    let family = request.family;
+    if (!family && Array.isArray(families)) {
+      family = families.find((f: any) => f.id === request.familyId);
+    }
+
     const matchesSearch = request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          request.id.toString().includes(searchTerm);
+                          request.id.toString().includes(searchTerm) ||
+                          (family?.husbandName && family.husbandName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                          (family?.husbandID && family.husbandID.includes(searchTerm));
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     const matchesType = typeFilter === "all" || request.type === typeFilter;
-    
+
     return matchesSearch && matchesStatus && matchesType;
   }) : [];
 
@@ -235,7 +243,7 @@ export default function AdminRequests() {
                 <div className="relative md:col-span-1">
                   <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="البحث برقم الطلب أو الوصف..."
+                    placeholder="البحث برقم الطلب أو الوصف أو اسم رب الأسرة أو رقم هويته..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pr-10 w-full"
