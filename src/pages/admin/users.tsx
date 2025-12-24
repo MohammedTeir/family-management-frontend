@@ -892,7 +892,7 @@ export default function Users() {
 
                 <div>
                   <Label htmlFor="branch" className="text-sm sm:text-base">الفرع</Label>
-                  <Select value={form.watch("branch") || undefined} onValueChange={(value) => form.setValue("branch", value || null)}>
+                  <Select value={form.watch("branch") || ""} onValueChange={(value) => form.setValue("branch", value || null)}>
                     <SelectTrigger className="w-full mt-1">
                       <SelectValue placeholder="اختر الفرع" />
                     </SelectTrigger>
