@@ -27,6 +27,7 @@ const userSchema = z.object({
   password: z.string().optional(),
   role: z.literal("admin"),
   phone: z.string().optional(),
+  branch: z.string().optional(),
   isProtected: z.boolean().optional(),
 });
 
@@ -97,6 +98,7 @@ export default function Users() {
       password: "",
       role: "admin",
       phone: "",
+      branch: "",
       isProtected: false,
     },
   });
@@ -428,6 +430,7 @@ export default function Users() {
       password: "", // Don't pre-fill password for security
       role: user.role,
       phone: user.phone || "",
+      branch: user.branch || "",
       isProtected: !!user.isProtected, // ensure boolean
     });
     setIsDialogOpen(true);
@@ -440,6 +443,7 @@ export default function Users() {
       password: "",
       role: "admin",
       phone: "",
+      branch: "",
       isProtected: false,
     });
     setIsDialogOpen(true);
@@ -721,6 +725,7 @@ export default function Users() {
                       <tr>
                         <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">اسم المستخدم</th>
                         <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">الدور</th>
+                        <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">الفرع</th>
                         <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">رقم الجوال</th>
                         <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">الحالة</th>
                         <th className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-muted-foreground">الإجراءات</th>
@@ -736,6 +741,7 @@ export default function Users() {
                             <td className="px-2 sm:px-4 py-3">
                               <Badge variant={getRoleBadgeVariant(user.role)} className="text-xs">{getRoleLabel(user.role)}</Badge>
                           </td>
+                            <td className="px-2 sm:px-4 py-3 text-sm">{user.branch || "-"}</td>
                             <td className="px-2 sm:px-4 py-3 text-sm">{user.phone || "-"}</td>
                             <td className="px-2 sm:px-4 py-3">
                               {isDeleted ? (
@@ -867,6 +873,17 @@ export default function Users() {
                     {...form.register("phone")}
                     className="mt-1"
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="branch" className="text-sm sm:text-base">الفرع</Label>
+                  <Input
+                    id="branch"
+                    placeholder="أدخل اسم الفرع (للمشرفين)"
+                    {...form.register("branch")}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">سيتم تصفية العائلات حسب الفرع للمشرفين فقط</p>
                 </div>
 
 

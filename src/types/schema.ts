@@ -8,6 +8,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: varchar("role", { length: 20 }).notNull().default("head"), // 'head', 'admin', 'root'
   phone: varchar("phone", { length: 20 }),
+  gender: varchar("gender", { length: 10 }).default("male"), // 'male', 'female', 'other'
+  branch: varchar("branch", { length: 100 }), // Branch field for admin users
   isProtected: boolean("is_protected").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
@@ -224,6 +226,9 @@ export const voucherRecipientsRelations = relations(voucherRecipients, ({ one })
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+}).extend({
+  gender: z.enum(['male', 'female']).optional(),
+  branch: z.string().optional(),
 });
 
 export const insertFamilySchema = createInsertSchema(families).omit({
