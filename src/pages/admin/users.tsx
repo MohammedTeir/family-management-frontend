@@ -741,7 +741,16 @@ export default function Users() {
                             <td className="px-2 sm:px-4 py-3">
                               <Badge variant={getRoleBadgeVariant(user.role)} className="text-xs">{getRoleLabel(user.role)}</Badge>
                           </td>
-                            <td className="px-2 sm:px-4 py-3 text-sm">{user.branch || "-"}</td>
+                            <td className="px-2 sm:px-4 py-3 text-sm">
+                              {user.branch ? (
+                                user.branch === 'abushalbia' ? 'ابو شلبية (شلف - علاينة - عزايزة)' :
+                                user.branch === 'alnaqra' ? 'النقرة (الدوار)' :
+                                user.branch === 'abuawda' ? 'ابو عودة' :
+                                user.branch === 'abunasr' ? 'ابو نصر' :
+                                user.branch === 'abumatar' ? 'ابو مطر' :
+                                user.branch
+                              ) : "-"}
+                            </td>
                             <td className="px-2 sm:px-4 py-3 text-sm">{user.phone || "-"}</td>
                             <td className="px-2 sm:px-4 py-3">
                               {isDeleted ? (
@@ -877,12 +886,19 @@ export default function Users() {
 
                 <div>
                   <Label htmlFor="branch" className="text-sm sm:text-base">الفرع</Label>
-                  <Input
-                    id="branch"
-                    placeholder="أدخل اسم الفرع (للمشرفين)"
-                    {...form.register("branch")}
-                    className="mt-1"
-                  />
+                  <Select value={form.watch("branch") || ""} onValueChange={(value) => form.setValue("branch", value)}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="اختر الفرع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">لا يوجد فرع</SelectItem>
+                      <SelectItem value="abushalbia">ابو شلبية (شلف - علاينة - عزايزة)</SelectItem>
+                      <SelectItem value="alnaqra">النقرة (الدوار)</SelectItem>
+                      <SelectItem value="abuawda">ابو عودة</SelectItem>
+                      <SelectItem value="abunasr">ابو نصر</SelectItem>
+                      <SelectItem value="abumatar">ابو مطر</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground mt-1">سيتم تصفية العائلات حسب الفرع للمشرفين فقط</p>
                 </div>
 
