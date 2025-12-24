@@ -892,12 +892,12 @@ export default function Users() {
 
                 <div>
                   <Label htmlFor="branch" className="text-sm sm:text-base">الفرع</Label>
-                  <Select value={form.watch("branch") || ""} onValueChange={(value) => form.setValue("branch", value || null)}>
+                  <Select value={form.watch("branch") || "no-selection"} onValueChange={(value) => form.setValue("branch", value === "no-selection" ? null : value)}>
                     <SelectTrigger className="w-full mt-1">
                       <SelectValue placeholder="اختر الفرع" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">لا يوجد فرع</SelectItem>
+                      <SelectItem value="no-selection">لا يوجد فرع</SelectItem>
                       <SelectItem value="abushalbia">ابو شلبية (شلف - علاينة - عزايزة)</SelectItem>
                       <SelectItem value="alnaqra">النقرة (الدوار)</SelectItem>
                       <SelectItem value="abuawda">ابو عودة</SelectItem>
