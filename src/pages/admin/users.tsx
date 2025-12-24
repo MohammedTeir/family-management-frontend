@@ -409,10 +409,19 @@ export default function Users() {
     }
 
     // Process the branch field to ensure it's properly handled
-    const processedData = {
-      ...data,
-      branch: data.branch || null, // Convert empty string or undefined to null
-    };
+    // Non-root users should not be able to modify the branch field
+    let processedData = { ...data };
+    if (currentUser?.role !== 'root') {
+      // For non-root users, remove branch from the update/create data
+      // The branch will remain unchanged
+      delete processedData.branch;
+    } else {
+      // For root users, process the branch field normally
+      processedData = {
+        ...processedData,
+        branch: data.branch || null, // Convert empty string or undefined to null
+      };
+    }
 
     if (editingUser) {
       const updateData: Partial<UserFormData> = { ...processedData };
@@ -890,6 +899,7 @@ export default function Users() {
                   />
                 </div>
 
+                {currentUser?.role === 'root' && (
                 <div>
                   <Label htmlFor="branch" className="text-sm sm:text-base">الفرع</Label>
                   <Select value={form.watch("branch") || "no-selection"} onValueChange={(value) => form.setValue("branch", value === "no-selection" ? null : value)}>
@@ -907,6 +917,7 @@ export default function Users() {
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">سيتم تصفية العائلات حسب الفرع للمشرفين فقط</p>
                 </div>
+                )}
 
 
                 
