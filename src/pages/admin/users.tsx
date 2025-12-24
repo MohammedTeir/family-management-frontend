@@ -98,7 +98,7 @@ export default function Users() {
       password: "",
       role: "admin",
       phone: "",
-      branch: "",
+      branch: null,
       isProtected: false,
     },
   });
@@ -398,7 +398,7 @@ export default function Users() {
       form.setError("password", { type: "manual", message: "كلمة المرور مطلوبة للمشرفين" });
       return;
     }
-    
+
     // If password is provided, validate it
     if (data.password) {
       const passwordErrors = validatePasswordWithPolicy(data.password, settings);
@@ -408,14 +408,20 @@ export default function Users() {
       }
     }
 
+    // Process the branch field to ensure it's properly handled
+    const processedData = {
+      ...data,
+      branch: data.branch || null, // Convert empty string or undefined to null
+    };
+
     if (editingUser) {
-      const updateData: Partial<UserFormData> = { ...data };
+      const updateData: Partial<UserFormData> = { ...processedData };
       if (!data.password) {
         delete (updateData as any).password;
       }
       updateUserMutation.mutate(updateData);
     } else {
-      createUserMutation.mutate(data);
+      createUserMutation.mutate(processedData);
     }
   };
 
@@ -430,7 +436,7 @@ export default function Users() {
       password: "", // Don't pre-fill password for security
       role: user.role,
       phone: user.phone || "",
-      branch: user.branch || "",
+      branch: user.branch || null,
       isProtected: !!user.isProtected, // ensure boolean
     });
     setIsDialogOpen(true);
@@ -443,7 +449,7 @@ export default function Users() {
       password: "",
       role: "admin",
       phone: "",
-      branch: "",
+      branch: null,
       isProtected: false,
     });
     setIsDialogOpen(true);
