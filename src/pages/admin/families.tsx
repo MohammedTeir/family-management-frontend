@@ -988,10 +988,49 @@ const AdminFamilies = memo(function AdminFamilies() {
 
         // Then apply priority colors to ensure they take precedence
         if (includePriorityColor && priorityFillColor) {
+          // Recalculate priority number for font color logic
+          let currentPriorityNumber = 5; // Default to normal priority
+
+          // First try to get from family object
+          if (family.priority !== undefined && family.priority !== null) {
+            currentPriorityNumber = family.priority;
+          } else {
+            // Fallback: find priority in rowData
+            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
+            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
+              const priorityValue = rowData[priorityIndex];
+              // Convert Arabic text back to number if needed
+              if (typeof priorityValue === 'string') {
+                if (priorityValue === 'أولوية قصوى') currentPriorityNumber = 1;
+                else if (priorityValue === 'أولوية عالية') currentPriorityNumber = 2;
+                else if (priorityValue === 'أولوية متوسطة') currentPriorityNumber = 3;
+                else if (priorityValue === 'أولوية منخفضة') currentPriorityNumber = 4;
+                else if (priorityValue === 'أولوية عادية') currentPriorityNumber = 5;
+                else currentPriorityNumber = 5;
+              } else if (typeof priorityValue === 'number') {
+                currentPriorityNumber = Math.min(Math.max(priorityValue, 1), 5);
+              }
+            }
+          }
+
+          // Ensure currentPriorityNumber is a valid number between 1 and 5
+          if (typeof currentPriorityNumber === 'string') {
+            if (currentPriorityNumber === 'أولوية قصوى') currentPriorityNumber = 1;
+            else if (currentPriorityNumber === 'أولوية عالية') currentPriorityNumber = 2;
+            else if (currentPriorityNumber === 'أولوية متوسطة') currentPriorityNumber = 3;
+            else if (currentPriorityNumber === 'أولوية منخفضة') currentPriorityNumber = 4;
+            else if (currentPriorityNumber === 'أولوية عادية') currentPriorityNumber = 5;
+            else currentPriorityNumber = 5;
+          } else if (typeof currentPriorityNumber === 'number') {
+            currentPriorityNumber = Math.min(Math.max(currentPriorityNumber, 1), 5);
+          } else {
+            currentPriorityNumber = 5;
+          }
+
           console.log('Applying priority color to row:', {
             familyId: family.id,
             familyName: family.husbandName,
-            priorityNumber: family.priority,
+            priorityNumber: currentPriorityNumber,
             color: priorityFillColor,
             columnsCount: selectedCols.length
           });
@@ -1007,7 +1046,7 @@ const AdminFamilies = memo(function AdminFamilies() {
             };
 
             // Ensure the color is applied by setting the font color to contrast appropriately
-            if (priorityNumber === 5) { // For gray background, use black text
+            if (currentPriorityNumber === 5) { // For gray background, use black text
               cell.font = { color: { argb: 'FF000000' } }; // Black text
             } else { // For colored backgrounds, ensure good contrast
               cell.font = { color: { argb: 'FF000000' } }; // Black text for contrast
