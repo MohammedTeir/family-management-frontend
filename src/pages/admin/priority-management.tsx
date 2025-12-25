@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Users, Search, ChevronUp, ChevronDown, Filter } from "lucide-react";
+import { Users, Search, ChevronUp, ChevronDown, Filter, FileSpreadsheet } from "lucide-react";
 import { getPriorityInArabic, getPriorityColor, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ExcelJS from 'exceljs';
 import { useSettingsContext } from "@/contexts/SettingsContext";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
@@ -21,6 +23,11 @@ const PriorityManagement = memo(function PriorityManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { settings } = useSettingsContext();
+
+  // Excel export states
+  const [isExcelDialogOpen, setIsExcelDialogOpen] = useState(false);
+  const [includePriorityColor, setIncludePriorityColor] = useState(false);
+  const [customFileName, setCustomFileName] = useState("");
 
   useEffect(() => {
     if (settings.siteTitle) {
@@ -88,6 +95,137 @@ const PriorityManagement = memo(function PriorityManagement() {
   // Pagination logic
   const totalPages = Math.ceil(filteredFamilies.length / pageSize);
   const paginatedFamilies = filteredFamilies.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Excel export handler
+  const handleExportExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('أولويات العائلات', {views: [{rightToLeft: true}] });
+
+      // Styles
+      const titleStyle: Partial<ExcelJS.Style> = {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color
+        font: { color: { argb: 'FF000000' }, bold: true, size: 16 }, // Black text
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+      const headerStyle: Partial<ExcelJS.Style> = {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color
+        font: { color: { argb: 'FF000000' }, bold: true, size: 12 }, // Black text
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: { top: { style: 'thin' as ExcelJS.BorderStyle }, bottom: { style: 'thin' as ExcelJS.BorderStyle }, left: { style: 'thin' as ExcelJS.BorderStyle }, right: { style: 'thin' as ExcelJS.BorderStyle } }
+      };
+      const dataStyle: Partial<ExcelJS.Style> = {
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: { top: { style: 'thin' as ExcelJS.BorderStyle }, bottom: { style: 'thin' as ExcelJS.BorderStyle }, left: { style: 'thin' as ExcelJS.BorderStyle }, right: { style: 'thin' as ExcelJS.BorderStyle } }
+      };
+
+      // Add title row
+      const titleCells = ['أولويات العائلات (تصدير)'];
+      const titleRow = sheet.addRow(titleCells);
+      titleRow.height = 30;
+      sheet.mergeCells(`A1:F1`);
+      titleRow.getCell(1).style = titleStyle;
+      titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // Header row
+      const headerRow = sheet.addRow([
+        'رقم العائلة',
+        'اسم رب الأسرة',
+        'رقم الهوية',
+        'عدد الأفراد',
+        'الأولوية الحالية',
+        'الحالة'
+      ]);
+      headerRow.height = 30;
+      headerRow.eachCell(cell => {
+        cell.style = headerStyle;
+        cell.alignment = {
+          ...headerStyle.alignment,
+          wrapText: true
+        };
+      });
+
+      // Data rows
+      filteredFamilies.forEach(family => {
+        const rowData = [
+          family.id,
+          family.husbandName,
+          family.husbandID,
+          family.totalMembers || 0,
+          getPriorityInArabic(family.priority || 5),
+          family.isDisplaced ? 'نازح' : family.warDamage2023 ? 'متضرر' : family.isAbroad ? 'مغترب' : 'عادي'
+        ];
+
+        const row = sheet.addRow(rowData);
+        row.height = 25;
+        row.eachCell((cell, colNumber) => {
+          cell.style = dataStyle;
+          cell.alignment = {
+            ...dataStyle.alignment,
+            wrapText: true
+          };
+
+          // Apply priority-based row coloring if the option is enabled
+          if (includePriorityColor) {
+            // Get the priority number for this family
+            let priorityNumber = family.priority || 5;
+
+            // Set background color based on priority
+            switch (priorityNumber) {
+              case 1: // Highest priority - Red
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFB6C1' } }; // Light red
+                break;
+              case 2: // High priority - Orange
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD580' } }; // Light orange
+                break;
+              case 3: // Medium priority - Yellow
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } }; // Light yellow
+                break;
+              case 4: // Low priority - Blue
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90CAF9' } }; // Light blue
+                break;
+              case 5: // Normal priority - Green
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }; // Light green
+                break;
+              default: // Default color
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
+            }
+          }
+        });
+      });
+
+      // Set column widths
+      sheet.columns = [
+        { width: 15 }, // Family ID
+        { width: 30 }, // Husband Name
+        { width: 20 }, // ID
+        { width: 15 }, // Members count
+        { width: 20 }, // Priority
+        { width: 15 }  // Status
+      ];
+
+      // Download
+      let fileName;
+      if (customFileName.trim()) {
+        fileName = customFileName.trim().endsWith('.xlsx') ? customFileName.trim() : customFileName.trim() + '.xlsx';
+      } else {
+        fileName = `priority_families_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      }
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast({ title: 'تم التصدير بنجاح', description: `تم حفظ ملف Excel باسم: ${fileName}`, variant: 'default' });
+      // Reset custom filename after successful export
+      setCustomFileName('');
+    } catch (error) {
+      toast({ title: 'خطأ في التصدير', description: 'حدث خطأ أثناء تصدير البيانات إلى Excel', variant: 'destructive' });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -298,6 +436,72 @@ const PriorityManagement = memo(function PriorityManagement() {
             )}
           </CardContent>
         </Card>
+
+        {/* Excel Export Button */}
+        <div className="flex justify-end mb-6">
+          <Button onClick={() => setIsExcelDialogOpen(true)} variant="outline" className="flex items-center gap-2 justify-center">
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">تصدير إلى Excel</span>
+            <span className="sm:hidden">تصدير</span>
+          </Button>
+        </div>
+
+        {/* Excel Export Dialog */}
+        <Dialog
+          open={isExcelDialogOpen}
+          onOpenChange={(open) => {
+            setIsExcelDialogOpen(open);
+            if (!open) {
+              setCustomFileName(''); // Clear the filename when dialog is closed
+            }
+          }}
+        >
+          <DialogContent className="max-w-md max-h-[90vh] w-[95vw] overflow-y-auto">
+            <DialogHeader className="px-4 sm:px-6">
+              <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold">
+                <FileSpreadsheet className="h-5 w-5" />
+                <span>تصدير بيانات الأولويات إلى Excel</span>
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground text-right">
+                تصدير بيانات العائلات مع تلوين الصفوف حسب الأولوية
+              </p>
+            </DialogHeader>
+
+            <div className="px-4 sm:px-6 py-4 space-y-4">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-right mb-2">
+                  اسم ملف التصدير (اختياري)
+                </label>
+                <Input
+                  value={customFileName}
+                  onChange={(e) => setCustomFileName(e.target.value)}
+                  placeholder="أدخل اسم الملف (مثلاً: الأولويات_٢٠٢٥)"
+                  className="w-full text-right"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includePriorityColor"
+                  checked={includePriorityColor}
+                  onChange={(e) => setIncludePriorityColor(e.target.checked)}
+                  className="h-4 w-4 text-primary accent-primary focus:ring-primary"
+                />
+                <label htmlFor="includePriorityColor" className="mr-2 text-sm font-medium text-foreground">
+                  تلوين الصفوف حسب الأولوية
+                </label>
+              </div>
+
+              <div className="flex justify-end mt-4">
+                <Button onClick={() => handleExportExcel()} className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  تصدير إلى Excel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageWrapper>
   );

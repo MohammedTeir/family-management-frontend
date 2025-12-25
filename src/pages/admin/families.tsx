@@ -47,6 +47,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [memberAgeMax, setMemberAgeMax] = useState('');
   const [completenessFilter, setCompletenessFilter] = useState('all');
   const [hasRequestsFilter, setHasRequestsFilter] = useState('all');
+  const [includePriorityColor, setIncludePriorityColor] = useState(false);
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -882,13 +883,51 @@ const AdminFamilies = memo(function AdminFamilies() {
         });
         const row = sheet.addRow(rowData);
         row.height = 25; // Increased row height for better readability
-        row.eachCell(cell => { 
+        row.eachCell(cell => {
           cell.style = dataStyle;
           // Enable text wrapping for long content
-          cell.alignment = { 
+          cell.alignment = {
             ...dataStyle.alignment,
             wrapText: true
           };
+
+          // Apply priority-based row coloring if the option is enabled
+          if (includePriorityColor) {
+            // Find the priority value for this family from the rowData
+            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
+            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
+              const priorityValue = rowData[priorityIndex];
+              let priorityNumber = 5; // Default to normal priority if not found
+
+              // Convert Arabic priority text back to number
+              if (priorityValue === 'أولوية قصوى') priorityNumber = 1;
+              else if (priorityValue === 'أولوية عالية') priorityNumber = 2;
+              else if (priorityValue === 'أولوية متوسطة') priorityNumber = 3;
+              else if (priorityValue === 'أولوية منخفضة') priorityNumber = 4;
+              else if (priorityValue === 'أولوية عادية') priorityNumber = 5;
+
+              // Set background color based on priority
+              switch (priorityNumber) {
+                case 1: // Highest priority - Red
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFB6C1' } }; // Light red
+                  break;
+                case 2: // High priority - Orange
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD580' } }; // Light orange
+                  break;
+                case 3: // Medium priority - Yellow
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } }; // Light yellow
+                  break;
+                case 4: // Low priority - Blue
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90CAF9' } }; // Light blue
+                  break;
+                case 5: // Normal priority - Green
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }; // Light green
+                  break;
+                default: // Default color
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
+              }
+            }
+          }
         });
       });
       // Set intelligent column widths based on content type
@@ -1744,6 +1783,19 @@ const AdminFamilies = memo(function AdminFamilies() {
                     placeholder="أدخل اسم الملف (مثلاً: الأسر_المسجلة_٢٠٢٥)"
                     className="w-full text-right"
                   />
+                </div>
+
+                <div className="mb-4 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="includePriorityColor"
+                    checked={includePriorityColor}
+                    onChange={(e) => setIncludePriorityColor(e.target.checked)}
+                    className="h-4 w-4 text-primary accent-primary focus:ring-primary"
+                  />
+                  <label htmlFor="includePriorityColor" className="mr-2 text-sm font-medium text-foreground">
+                    تلوين الصفوف حسب الأولوية
+                  </label>
                 </div>
 
                 <div className="flex justify-end mt-4">
