@@ -988,12 +988,29 @@ const AdminFamilies = memo(function AdminFamilies() {
 
         // Then apply priority colors to ensure they take precedence
         if (includePriorityColor && priorityFillColor) {
+          console.log('Applying priority color to row:', {
+            familyId: family.id,
+            familyName: family.husbandName,
+            priorityNumber: family.priority,
+            color: priorityFillColor,
+            columnsCount: selectedCols.length
+          });
+
           for (let i = 1; i <= selectedCols.length; i++) {
             const cell = row.getCell(i);
+            // Apply the fill color directly with explicit properties
             cell.fill = {
               type: 'pattern',
               pattern: 'solid',
               fgColor: priorityFillColor
+            };
+
+            // Additional styling to ensure visibility
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
             };
           }
         }
