@@ -899,16 +899,9 @@ const AdminFamilies = memo(function AdminFamilies() {
         });
         const row = sheet.addRow(rowData);
         row.height = 25; // Increased row height for better readability
-        row.eachCell(cell => {
-          cell.style = dataStyle;
-          // Enable text wrapping for long content
-          cell.alignment = {
-            ...dataStyle.alignment,
-            wrapText: true
-          };
-        });
 
         // Apply priority-based row coloring if the option is enabled
+        let priorityFillColor = null;
         if (includePriorityColor) {
           // Try to get priority from the family object first, then from rowData as fallback
           let priorityNumber = 5; // Default to normal priority
@@ -960,34 +953,45 @@ const AdminFamilies = memo(function AdminFamilies() {
             priorityNumber: priorityNumber
           });
 
-          let fillColor = { argb: 'FFFFFFFF' }; // Default white color
           // Set background color based on priority
           switch (priorityNumber) {
             case 1: // Highest priority - Red
-              fillColor = { argb: 'FFFFB6C1' }; // Light red
+              priorityFillColor = { argb: 'FFFFB6C1' }; // Light red
               break;
             case 2: // High priority - Orange
-              fillColor = { argb: 'FFFFD580' }; // Light orange
+              priorityFillColor = { argb: 'FFFFD580' }; // Light orange
               break;
             case 3: // Medium priority - Yellow
-              fillColor = { argb: 'FFFFFF99' }; // Light yellow
+              priorityFillColor = { argb: 'FFFFFF99' }; // Light yellow
               break;
             case 4: // Low priority - Blue
-              fillColor = { argb: 'FF90CAF9' }; // Light blue
+              priorityFillColor = { argb: 'FF90CAF9' }; // Light blue
               break;
             case 5: // Normal priority - Very light gray (subtle, less prominent)
-              fillColor = { argb: 'FFE0E0E0' }; // Very light gray
+              priorityFillColor = { argb: 'FFE0E0E0' }; // Very light gray
               break;
             default: // Default color
-              fillColor = { argb: 'FFFFFFFF' }; // White
-          }
-
-          // Apply the color to all cells in the row (from 1 to the total number of columns)
-          for (let i = 1; i <= selectedCols.length; i++) {
-            const cell = row.getCell(i);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: fillColor };
+              priorityFillColor = { argb: 'FFFFFFFF' }; // White
           }
         }
+
+        row.eachCell((cell, colNumber) => {
+          cell.style = dataStyle;
+          // Enable text wrapping for long content
+          cell.alignment = {
+            ...dataStyle.alignment,
+            wrapText: true
+          };
+
+          // Apply priority-based row coloring if the option is enabled and we have a color to apply
+          if (includePriorityColor && priorityFillColor && colNumber <= selectedCols.length) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: priorityFillColor
+            };
+          }
+        });
       });
       // Set intelligent column widths based on content type
       const getColumnWidth = (columnKey: string): number => {
