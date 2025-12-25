@@ -910,8 +910,30 @@ const AdminFamilies = memo(function AdminFamilies() {
 
         // Apply priority-based row coloring if the option is enabled
         if (includePriorityColor) {
-          // Use the family's priority directly instead of looking in rowData
-          let priorityNumber = family.priority || 5; // Default to normal priority if not found
+          // Try to get priority from the family object first, then from rowData as fallback
+          let priorityNumber = 5; // Default to normal priority
+
+          // First try to get from family object
+          if (family.priority !== undefined && family.priority !== null) {
+            priorityNumber = family.priority;
+          } else {
+            // Fallback: find priority in rowData
+            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
+            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
+              const priorityValue = rowData[priorityIndex];
+              // Convert Arabic text back to number if needed
+              if (typeof priorityValue === 'string') {
+                if (priorityValue === 'أولوية قصوى') priorityNumber = 1;
+                else if (priorityValue === 'أولوية عالية') priorityNumber = 2;
+                else if (priorityValue === 'أولوية متوسطة') priorityNumber = 3;
+                else if (priorityValue === 'أولوية منخفضة') priorityNumber = 4;
+                else if (priorityValue === 'أولوية عادية') priorityNumber = 5;
+                else priorityNumber = 5; // Default to normal
+              } else if (typeof priorityValue === 'number') {
+                priorityNumber = Math.min(Math.max(priorityValue, 1), 5);
+              }
+            }
+          }
 
           // Ensure priorityNumber is a valid number between 1 and 5
           if (typeof priorityNumber === 'string') {
@@ -933,7 +955,8 @@ const AdminFamilies = memo(function AdminFamilies() {
           console.log('Family priority:', {
             familyId: family.id,
             familyName: family.husbandName,
-            priorityValue: family.priority,
+            familyPriority: family.priority,
+            rowDataPriority: rowData[selectedCols.findIndex(col => col.key === 'priority')],
             priorityNumber: priorityNumber
           });
 
