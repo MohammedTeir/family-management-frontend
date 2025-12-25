@@ -953,22 +953,22 @@ const AdminFamilies = memo(function AdminFamilies() {
             priorityNumber: priorityNumber
           });
 
-          // Set background color based on priority
+          // Set background color based on priority - using more distinct colors
           switch (priorityNumber) {
-            case 1: // Highest priority - Red
-              priorityFillColor = { argb: 'FFFFB6C1' }; // Light red
+            case 1: // Highest priority - Dark Red
+              priorityFillColor = { argb: 'FFC62828' }; // Dark red (more visible)
               break;
-            case 2: // High priority - Orange
-              priorityFillColor = { argb: 'FFFFD580' }; // Light orange
+            case 2: // High priority - Dark Orange
+              priorityFillColor = { argb: 'FFF57C00' }; // Dark orange (more visible)
               break;
-            case 3: // Medium priority - Yellow
-              priorityFillColor = { argb: 'FFFFFF99' }; // Light yellow
+            case 3: // Medium priority - Dark Yellow
+              priorityFillColor = { argb: 'FFF9A825' }; // Dark yellow (more visible)
               break;
-            case 4: // Low priority - Blue
-              priorityFillColor = { argb: 'FF90CAF9' }; // Light blue
+            case 4: // Low priority - Dark Blue
+              priorityFillColor = { argb: 'FF1565C0' }; // Dark blue (more visible)
               break;
-            case 5: // Normal priority - Very light gray (subtle, less prominent)
-              priorityFillColor = { argb: 'FFE0E0E0' }; // Very light gray
+            case 5: // Normal priority - Dark Gray
+              priorityFillColor = { argb: 'FF757575' }; // Dark gray (more visible)
               break;
             default: // Default color
               priorityFillColor = { argb: 'FFFFFFFF' }; // White
@@ -998,12 +998,20 @@ const AdminFamilies = memo(function AdminFamilies() {
 
           for (let i = 1; i <= selectedCols.length; i++) {
             const cell = row.getCell(i);
-            // Apply the fill color directly with explicit properties
+            // Apply the fill color with more explicit properties for Excel
             cell.fill = {
               type: 'pattern',
               pattern: 'solid',
-              fgColor: priorityFillColor
+              fgColor: { argb: priorityFillColor.argb },
+              bgColor: { argb: priorityFillColor.argb }
             };
+
+            // Ensure the color is applied by setting the font color to contrast appropriately
+            if (priorityNumber === 5) { // For gray background, use black text
+              cell.font = { color: { argb: 'FF000000' } }; // Black text
+            } else { // For colored backgrounds, ensure good contrast
+              cell.font = { color: { argb: 'FF000000' } }; // Black text for contrast
+            }
 
             // Additional styling to ensure visibility
             cell.border = {
