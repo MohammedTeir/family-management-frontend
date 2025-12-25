@@ -1339,8 +1339,13 @@ const AdminFamilies = memo(function AdminFamilies() {
 
           {/* Families Table */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle>قائمة الأسر ({filteredFamilies.length})</CardTitle>
+              <Button onClick={() => setIsExcelDialogOpen(true)} variant="outline" className="flex items-center gap-2 justify-center w-full sm:w-auto">
+                <FileSpreadsheet className="h-4 w-4" />
+                <span className="hidden sm:inline">تصدير إلى Excel</span>
+                <span className="sm:hidden">تصدير</span>
+              </Button>
             </CardHeader>
             <CardContent>
               {filteredFamilies.length > 0 ? (
@@ -1704,14 +1709,6 @@ const AdminFamilies = memo(function AdminFamilies() {
             </DialogContent>
           </Dialog>
           
-          {/* Excel Export Button */}
-          <div className="flex justify-end mb-6">
-            <Button onClick={() => setIsExcelDialogOpen(true)} variant="outline" className="flex items-center gap-2 justify-center">
-              <FileSpreadsheet className="h-4 w-4" />
-              <span className="hidden sm:inline">تصدير إلى Excel</span>
-              <span className="sm:hidden">تصدير</span>
-            </Button>
-          </div>
 
 
           {/* Excel Export Dialog */}
