@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { Users, Plus, Edit, Trash2 } from "lucide-react";
+import { Users, Plus, Edit, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
 import { getSocialStatusInArabic, getDamageDescriptionInArabic, getBranchInArabic } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -397,6 +397,18 @@ export default function FamilyData() {
               (name === 'totalMembers' || name === 'numMales' || name === 'numFemales') ? Number(value) :
               value
     }));
+  };
+
+  // Handle increment and decrement of numeric values
+  const handleNumericChange = (fieldName: string, increment: number) => {
+    setFormData(prev => {
+      const currentValue = Number(prev[fieldName] || 0);
+      const newValue = Math.max(0, currentValue + increment); // Ensure non-negative values
+      return {
+        ...prev,
+        [fieldName]: newValue
+      };
+    });
   };
 
   // Handle switch changes
@@ -927,42 +939,108 @@ export default function FamilyData() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div>
                   <Label htmlFor="totalMembers">إجمالي الأفراد *</Label>
-                  <Input
-                    id="totalMembers"
-                    name="totalMembers"
-                    type="number"
-                    min={1}
-                    value={formData.totalMembers}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="text-right"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('totalMembers', -1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      id="totalMembers"
+                      name="totalMembers"
+                      type="number"
+                      min={1}
+                      value={formData.totalMembers}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      className="text-right text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('totalMembers', 1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="numMales">عدد الذكور *</Label>
-                  <Input
-                    id="numMales"
-                    name="numMales"
-                    type="number"
-                    min={0}
-                    value={formData.numMales}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="text-right"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('numMales', -1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      id="numMales"
+                      name="numMales"
+                      type="number"
+                      min={0}
+                      value={formData.numMales}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      className="text-right text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('numMales', 1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="numFemales">عدد الإناث *</Label>
-                  <Input
-                    id="numFemales"
-                    name="numFemales"
-                    type="number"
-                    min={0}
-                    value={formData.numFemales}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="text-right"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('numFemales', -1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      id="numFemales"
+                      name="numFemales"
+                      type="number"
+                      min={0}
+                      value={formData.numFemales}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      className="text-right text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNumericChange('numFemales', 1)}
+                      disabled={!isEditing}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

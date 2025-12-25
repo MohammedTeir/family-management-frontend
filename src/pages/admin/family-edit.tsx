@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, ArrowLeft, Users } from "lucide-react";
+import { Edit2, Plus, Trash2, ArrowLeft, Users, ChevronUp, ChevronDown } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getRelationshipInArabic, getGenderInArabic, calculateDetailedAge, getBranchInArabic, getDamageDescriptionInArabic, getSocialStatusInArabic } from "@/lib/utils";
@@ -318,6 +318,18 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
               value,
     }));
   }
+
+  // Handle increment and decrement of numeric values
+  const handleNumericChange = (fieldName: string, increment: number) => {
+    setFamilyForm(prev => {
+      const currentValue = Number(prev[fieldName] || 0);
+      const newValue = Math.max(0, currentValue + increment); // Ensure non-negative values
+      return {
+        ...prev,
+        [fieldName]: newValue
+      };
+    });
+  };
 
   // Handle family form submit
   function handleFamilySubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -797,15 +809,75 @@ export default function AdminFamilyEdit({ params }: { params: { id: string } }) 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                             <div className="flex flex-col items-end">
                               <Label htmlFor="totalMembers" className="text-right w-full mb-1">عدد الأفراد *</Label>
-                              <Input id="totalMembers" name="totalMembers" type="number" min="0" value={familyForm.totalMembers || 0} onChange={handleFamilyChange} required className="text-right mt-1" />
+                              <div className="flex items-center gap-2 w-full">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('totalMembers', -1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                <Input id="totalMembers" name="totalMembers" type="number" min="0" value={familyForm.totalMembers || 0} onChange={handleFamilyChange} required className="text-right mt-1 flex-1 text-center" />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('totalMembers', 1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="flex flex-col items-end">
                               <Label htmlFor="numMales" className="text-right w-full mb-1">عدد الذكور *</Label>
-                              <Input id="numMales" name="numMales" type="number" min="0" value={familyForm.numMales || 0} onChange={handleFamilyChange} required className="text-right mt-1" />
+                              <div className="flex items-center gap-2 w-full">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('numMales', -1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                <Input id="numMales" name="numMales" type="number" min="0" value={familyForm.numMales || 0} onChange={handleFamilyChange} required className="text-right mt-1 flex-1 text-center" />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('numMales', 1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="flex flex-col items-end">
                               <Label htmlFor="numFemales" className="text-right w-full mb-1">عدد الإناث *</Label>
-                              <Input id="numFemales" name="numFemales" type="number" min="0" value={familyForm.numFemales || 0} onChange={handleFamilyChange} required className="text-right mt-1" />
+                              <div className="flex items-center gap-2 w-full">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('numFemales', -1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                <Input id="numFemales" name="numFemales" type="number" min="0" value={familyForm.numFemales || 0} onChange={handleFamilyChange} required className="text-right mt-1 flex-1 text-center" />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNumericChange('numFemales', 1)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
