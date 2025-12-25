@@ -975,23 +975,28 @@ const AdminFamilies = memo(function AdminFamilies() {
           }
         }
 
+        // First apply data styles to all cells
         row.eachCell((cell, colNumber) => {
+          // Apply data style first
           cell.style = dataStyle;
           // Enable text wrapping for long content
           cell.alignment = {
             ...dataStyle.alignment,
             wrapText: true
           };
+        });
 
-          // Apply priority-based row coloring if the option is enabled and we have a color to apply
-          if (includePriorityColor && priorityFillColor && colNumber <= selectedCols.length) {
+        // Then apply priority colors to ensure they take precedence
+        if (includePriorityColor && priorityFillColor) {
+          for (let i = 1; i <= selectedCols.length; i++) {
+            const cell = row.getCell(i);
             cell.fill = {
               type: 'pattern',
               pattern: 'solid',
               fgColor: priorityFillColor
             };
           }
-        });
+        }
       });
       // Set intelligent column widths based on content type
       const getColumnWidth = (columnKey: string): number => {
