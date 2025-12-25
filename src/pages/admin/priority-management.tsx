@@ -46,7 +46,7 @@ const PriorityManagement = memo(function PriorityManagement() {
 
   const updatePriorityMutation = useMutation({
     mutationFn: async ({ familyId, priority }: { familyId: number; priority: number }) => {
-      const response = await apiClient.patch(`/api/families/${familyId}/priority`, { priority });
+      const response = await apiClient.put(`/api/families/${familyId}/priority`, { priority });
       return response.data;
     },
     onSuccess: (updatedFamily) => {
@@ -54,7 +54,7 @@ const PriorityManagement = memo(function PriorityManagement() {
       // Update the cached data to avoid full page reload
       queryClient.setQueryData(['/api/admin/families'], (oldData: any[]) => {
         if (!oldData) return oldData;
-        return oldData.map(family => 
+        return oldData.map(family =>
           family.id === updatedFamily.id ? { ...family, priority: updatedFamily.priority } : family
         );
       });

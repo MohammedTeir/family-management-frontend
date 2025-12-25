@@ -181,7 +181,7 @@ const AdminFamilies = memo(function AdminFamilies() {
 
   const updatePriorityMutation = useMutation({
     mutationFn: async ({ familyId, priority }: { familyId: number; priority: number }) => {
-      const response = await apiClient.patch(`/api/families/${familyId}/priority`, { priority });
+      const response = await apiClient.put(`/api/families/${familyId}/priority`, { priority });
       return response.data;
     },
     onSuccess: (updatedFamily) => {
