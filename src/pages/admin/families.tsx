@@ -906,45 +906,52 @@ const AdminFamilies = memo(function AdminFamilies() {
             ...dataStyle.alignment,
             wrapText: true
           };
+        });
 
-          // Apply priority-based row coloring if the option is enabled
-          if (includePriorityColor) {
-            // Find the priority value for this family from the rowData
-            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
-            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
-              const priorityValue = rowData[priorityIndex];
-              let priorityNumber = 5; // Default to normal priority if not found
+        // Apply priority-based row coloring if the option is enabled
+        if (includePriorityColor) {
+          // Find the priority value for this family from the rowData
+          const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
+          if (priorityIndex !== -1 && priorityIndex < rowData.length) {
+            const priorityValue = rowData[priorityIndex];
+            let priorityNumber = 5; // Default to normal priority if not found
 
-              // Convert Arabic priority text back to number
-              if (priorityValue === 'أولوية قصوى') priorityNumber = 1;
-              else if (priorityValue === 'أولوية عالية') priorityNumber = 2;
-              else if (priorityValue === 'أولوية متوسطة') priorityNumber = 3;
-              else if (priorityValue === 'أولوية منخفضة') priorityNumber = 4;
-              else if (priorityValue === 'أولوية عادية') priorityNumber = 5;
+            // Convert Arabic priority text back to number
+            if (priorityValue === 'أولوية قصوى') priorityNumber = 1;
+            else if (priorityValue === 'أولوية عالية') priorityNumber = 2;
+            else if (priorityValue === 'أولوية متوسطة') priorityNumber = 3;
+            else if (priorityValue === 'أولوية منخفضة') priorityNumber = 4;
+            else if (priorityValue === 'أولوية عادية') priorityNumber = 5;
 
-              // Set background color based on priority
-              switch (priorityNumber) {
-                case 1: // Highest priority - Red
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFB6C1' } }; // Light red
-                  break;
-                case 2: // High priority - Orange
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD580' } }; // Light orange
-                  break;
-                case 3: // Medium priority - Yellow
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } }; // Light yellow
-                  break;
-                case 4: // Low priority - Blue
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90CAF9' } }; // Light blue
-                  break;
-                case 5: // Normal priority - Very light gray (subtle, less prominent)
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } }; // Very light gray
-                  break;
-                default: // Default color
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
-              }
+            let fillColor = { argb: 'FFFFFFFF' }; // Default white color
+            // Set background color based on priority
+            switch (priorityNumber) {
+              case 1: // Highest priority - Red
+                fillColor = { argb: 'FFFFB6C1' }; // Light red
+                break;
+              case 2: // High priority - Orange
+                fillColor = { argb: 'FFFFD580' }; // Light orange
+                break;
+              case 3: // Medium priority - Yellow
+                fillColor = { argb: 'FFFFFF99' }; // Light yellow
+                break;
+              case 4: // Low priority - Blue
+                fillColor = { argb: 'FF90CAF9' }; // Light blue
+                break;
+              case 5: // Normal priority - Very light gray (subtle, less prominent)
+                fillColor = { argb: 'FFE0E0E0' }; // Very light gray
+                break;
+              default: // Default color
+                fillColor = { argb: 'FFFFFFFF' }; // White
+            }
+
+            // Apply the color to all cells in the row (from 1 to the total number of columns)
+            for (let i = 1; i <= selectedCols.length; i++) {
+              const cell = row.getCell(i);
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: fillColor };
             }
           }
-        });
+        }
       });
       // Set intelligent column widths based on content type
       const getColumnWidth = (columnKey: string): number => {
