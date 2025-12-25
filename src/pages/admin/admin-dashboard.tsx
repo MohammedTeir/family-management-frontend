@@ -239,9 +239,18 @@ export default function AdminDashboard() {
                       إرسال تنبيه جديد
                     </Button>
                   </Link>
-                  
+
                   <Separator > </Separator>
-                  
+
+                  <Link href="/admin/priority-management">
+                    <Button variant="outline" className="w-full justify-start">
+                      <AlertTriangle className="h-4 w-4 ml-3" />
+                      إدارة الأولويات
+                    </Button>
+                  </Link>
+
+                  <Separator > </Separator>
+
                   <Link href="/admin/requests">
                     <Button variant="outline" className="w-full justify-start">
                       <Clock className="h-4 w-4 ml-3" />

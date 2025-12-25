@@ -1,16 +1,16 @@
 import { useEffect, useState, useMemo, useCallback, memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Search, Eye, Printer, Phone, MapPin, FileSpreadsheet, Edit2, Trash2, FileText } from "lucide-react";
+import { Users, Search, Eye, Printer, Phone, MapPin, FileSpreadsheet, Edit2, Trash2, FileText, ChevronUp, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FamiliesSkeleton } from "@/components/ui/families-skeleton";
 import { Link, useLocation } from "wouter";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getPriorityInArabic, getPriorityColor } from "@/lib/utils";
 import { getRelationshipInArabic, getGenderInArabic, calculateDetailedAge, getRequestTypeInArabic, getRequestStatusInArabic, getSocialStatusInArabic, isChild, getBranchInArabic, getDamageDescriptionInArabic } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ import { PageWrapper } from "@/components/layout/page-wrapper";
 
 // 🚀 PERFORMANCE: Memoized component to prevent unnecessary re-renders
 const AdminFamilies = memo(function AdminFamilies() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFamily, setSelectedFamily] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -83,6 +84,13 @@ const AdminFamilies = memo(function AdminFamilies() {
   // Families data fetching
   const { data: families, isLoading } = useQuery({
     queryKey: ["/api/admin/families"],
+    select: (data) => {
+      // Ensure priority field is present in all families (default to 5 if not present)
+      return data?.map((family: any) => ({
+        ...family,
+        priority: family.priority ?? 5
+      })) || [];
+    }
   });
 
   const { data: familyDetails, isLoading: familyDetailsLoading, error: familyDetailsError } = useQuery({
@@ -92,61 +100,67 @@ const AdminFamilies = memo(function AdminFamilies() {
       const response = await apiClient.get(`/api/admin/families/${selectedFamily.id}`);
       const data = response.data;
 
+      // Ensure priority field is present (default to 5 if not present)
+      const familyWithPriority = {
+        ...data,
+        priority: data.priority ?? 5
+      };
+
       // Transform spouse data based on head's gender to avoid field name conflicts
-      const headGender = data.userGender || 'male';
+      const headGender = familyWithPriority.userGender || 'male';
 
       // Store gender-appropriate spouse labels without overwriting head of household fields
-      if (data.spouse) {
+      if (familyWithPriority.spouse) {
         // Add transformed spouse fields with different names to avoid conflicts
         if (headGender === 'female') {
           // When head is female, the spouse object should have 'husband' prefixed fields
-          data.spouseAsHusbandName = data.spouse.husbandName || data.spouse.wifeName;
-          data.spouseAsHusbandID = data.spouse.husbandID || data.spouse.wifeID;
-          data.spouseAsHusbandBirthDate = data.spouse.husbandBirthDate || data.spouse.wifeBirthDate;
-          data.spouseAsHusbandJob = data.spouse.husbandJob || data.spouse.wifeJob;
-          data.spouseAsHusbandPregnant = data.spouse.husbandPregnant || data.spouse.wifePregnant; // This should typically be false for husbands
-          data.spouseAsHusbandHasChronicIllness = data.spouse.husbandHasChronicIllness || data.spouse.wifeHasChronicIllness;
-          data.spouseAsHusbandChronicIllnessType = data.spouse.husbandChronicIllnessType || data.spouse.wifeChronicIllnessType;
-          data.spouseAsHusbandHasDisability = data.spouse.husbandHasDisability || data.spouse.wifeHasDisability;
-          data.spouseAsHusbandDisabilityType = data.spouse.husbandDisabilityType || data.spouse.wifeDisabilityType;
+          familyWithPriority.spouseAsHusbandName = familyWithPriority.spouse.husbandName || familyWithPriority.spouse.wifeName;
+          familyWithPriority.spouseAsHusbandID = familyWithPriority.spouse.husbandID || familyWithPriority.spouse.wifeID;
+          familyWithPriority.spouseAsHusbandBirthDate = familyWithPriority.spouse.husbandBirthDate || familyWithPriority.spouse.wifeBirthDate;
+          familyWithPriority.spouseAsHusbandJob = familyWithPriority.spouse.husbandJob || familyWithPriority.spouse.wifeJob;
+          familyWithPriority.spouseAsHusbandPregnant = familyWithPriority.spouse.husbandPregnant || familyWithPriority.spouse.wifePregnant; // This should typically be false for husbands
+          familyWithPriority.spouseAsHusbandHasChronicIllness = familyWithPriority.spouse.husbandHasChronicIllness || familyWithPriority.spouse.wifeHasChronicIllness;
+          familyWithPriority.spouseAsHusbandChronicIllnessType = familyWithPriority.spouse.husbandChronicIllnessType || familyWithPriority.spouse.wifeChronicIllnessType;
+          familyWithPriority.spouseAsHusbandHasDisability = familyWithPriority.spouse.husbandHasDisability || familyWithPriority.spouse.wifeHasDisability;
+          familyWithPriority.spouseAsHusbandDisabilityType = familyWithPriority.spouse.husbandDisabilityType || familyWithPriority.spouse.wifeDisabilityType;
         } else {
           // When head is male, the spouse object should have 'wife' prefixed fields
-          data.spouseAsWifeName = data.spouse.wifeName;
-          data.spouseAsWifeID = data.spouse.wifeID;
-          data.spouseAsWifeBirthDate = data.spouse.wifeBirthDate;
-          data.spouseAsWifeJob = data.spouse.wifeJob;
-          data.spouseAsWifePregnant = data.spouse.wifePregnant;
-          data.spouseAsWifeHasChronicIllness = data.spouse.wifeHasChronicIllness;
-          data.spouseAsWifeChronicIllnessType = data.spouse.wifeChronicIllnessType;
-          data.spouseAsWifeHasDisability = data.spouse.wifeHasDisability;
-          data.spouseAsWifeDisabilityType = data.spouse.wifeDisabilityType;
+          familyWithPriority.spouseAsWifeName = familyWithPriority.spouse.wifeName;
+          familyWithPriority.spouseAsWifeID = familyWithPriority.spouse.wifeID;
+          familyWithPriority.spouseAsWifeBirthDate = familyWithPriority.spouse.wifeBirthDate;
+          familyWithPriority.spouseAsWifeJob = familyWithPriority.spouse.wifeJob;
+          familyWithPriority.spouseAsWifePregnant = familyWithPriority.spouse.wifePregnant;
+          familyWithPriority.spouseAsWifeHasChronicIllness = familyWithPriority.spouse.wifeHasChronicIllness;
+          familyWithPriority.spouseAsWifeChronicIllnessType = familyWithPriority.spouse.wifeChronicIllnessType;
+          familyWithPriority.spouseAsWifeHasDisability = familyWithPriority.spouse.wifeHasDisability;
+          familyWithPriority.spouseAsWifeDisabilityType = familyWithPriority.spouse.wifeDisabilityType;
         }
-      } else if (data.wifeName) {
+      } else if (familyWithPriority.wifeName) {
         // Fallback: if no spouse object but raw spouse fields exist
         if (headGender === 'female') {
-          data.spouseAsHusbandName = data.wifeName;
-          data.spouseAsHusbandID = data.wifeID;
-          data.spouseAsHusbandBirthDate = data.wifeBirthDate;
-          data.spouseAsHusbandJob = data.wifeJob;
-          data.spouseAsHusbandPregnant = data.wifePregnant; // This should typically be false for husbands
-          data.spouseAsHusbandHasChronicIllness = data.wifeHasChronicIllness;
-          data.spouseAsHusbandChronicIllnessType = data.wifeChronicIllnessType;
-          data.spouseAsHusbandHasDisability = data.wifeHasDisability;
-          data.spouseAsHusbandDisabilityType = data.wifeDisabilityType;
+          familyWithPriority.spouseAsHusbandName = familyWithPriority.wifeName;
+          familyWithPriority.spouseAsHusbandID = familyWithPriority.wifeID;
+          familyWithPriority.spouseAsHusbandBirthDate = familyWithPriority.wifeBirthDate;
+          familyWithPriority.spouseAsHusbandJob = familyWithPriority.wifeJob;
+          familyWithPriority.spouseAsHusbandPregnant = familyWithPriority.wifePregnant; // This should typically be false for husbands
+          familyWithPriority.spouseAsHusbandHasChronicIllness = familyWithPriority.wifeHasChronicIllness;
+          familyWithPriority.spouseAsHusbandChronicIllnessType = familyWithPriority.wifeChronicIllnessType;
+          familyWithPriority.spouseAsHusbandHasDisability = familyWithPriority.wifeHasDisability;
+          familyWithPriority.spouseAsHusbandDisabilityType = familyWithPriority.wifeDisabilityType;
         } else {
-          data.spouseAsWifeName = data.wifeName;
-          data.spouseAsWifeID = data.wifeID;
-          data.spouseAsWifeBirthDate = data.wifeBirthDate;
-          data.spouseAsWifeJob = data.wifeJob;
-          data.spouseAsWifePregnant = data.wifePregnant;
-          data.spouseAsWifeHasChronicIllness = data.wifeHasChronicIllness;
-          data.spouseAsWifeChronicIllnessType = data.wifeChronicIllnessType;
-          data.spouseAsWifeHasDisability = data.wifeHasDisability;
-          data.spouseAsWifeDisabilityType = data.wifeDisabilityType;
+          familyWithPriority.spouseAsWifeName = familyWithPriority.wifeName;
+          familyWithPriority.spouseAsWifeID = familyWithPriority.wifeID;
+          familyWithPriority.spouseAsWifeBirthDate = familyWithPriority.wifeBirthDate;
+          familyWithPriority.spouseAsWifeJob = familyWithPriority.wifeJob;
+          familyWithPriority.spouseAsWifePregnant = familyWithPriority.wifePregnant;
+          familyWithPriority.spouseAsWifeHasChronicIllness = familyWithPriority.wifeHasChronicIllness;
+          familyWithPriority.spouseAsWifeChronicIllnessType = familyWithPriority.wifeChronicIllnessType;
+          familyWithPriority.spouseAsWifeHasDisability = familyWithPriority.wifeHasDisability;
+          familyWithPriority.spouseAsWifeDisabilityType = familyWithPriority.wifeDisabilityType;
         }
       }
 
-      return data;
+      return familyWithPriority;
     }
   });
 
@@ -162,6 +176,31 @@ const AdminFamilies = memo(function AdminFamilies() {
     },
     onError: (error: any) => {
       toast({ title: "خطأ في الحذف", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updatePriorityMutation = useMutation({
+    mutationFn: async ({ familyId, priority }: { familyId: number; priority: number }) => {
+      const response = await apiClient.patch(`/api/families/${familyId}/priority`, { priority });
+      return response.data;
+    },
+    onSuccess: (updatedFamily) => {
+      toast({ title: "تم تحديث الأولوية", description: "تم تحديث أولوية العائلة بنجاح" });
+      // Update the cached data to avoid full page reload
+      queryClient.setQueryData(['/api/admin/families'], (oldData: any[]) => {
+        if (!oldData) return oldData;
+        return oldData.map(family =>
+          family.id === updatedFamily.id ? { ...family, priority: updatedFamily.priority } : family
+        );
+      });
+
+      // If the selected family is the one being updated, update the detail view too
+      if (selectedFamily && selectedFamily.id === updatedFamily.id) {
+        setSelectedFamily(updatedFamily);
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "خطأ في التحديث", description: error.message, variant: "destructive" });
     },
   });
 
@@ -414,6 +453,7 @@ const AdminFamilies = memo(function AdminFamilies() {
     { key: 'displacedLocation', label: 'اقرب معلم لك في حال كنت نازح حاليا', checked: true },
     { key: 'warDamageDescription', label: 'الاضرار الناجمة عن حرب 2023', checked: true },
     { key: 'branch', label: 'الفرع', checked: true },
+    { key: 'priority', label: 'الأولوية', checked: true },
     { key: 'totalMembers', label: 'عدد افراد الأسرة مع الأب والأم', checked: true },
     { key: 'hasDisabledMembers', label: 'هل يوجد افراد ذوي اعاقة في العائلة', checked: true },
     { key: 'disabilityTypes', label: 'اذا كان يوجد أشخاص ذوي اعاقة اذكر نوع الإعاقة', checked: true },
@@ -789,6 +829,7 @@ const AdminFamilies = memo(function AdminFamilies() {
             case 'displacedLocation': return family.displacedLocation || '';
             case 'warDamageDescription': return getDamageDescriptionInArabic(family.warDamageDescription) || '';
             case 'branch': return getBranchInArabic(family.branch) || '';
+            case 'priority': return family.priority ? getPriorityInArabic(family.priority) : getPriorityInArabic(5);
             case 'totalMembers': return family.totalMembers || '';
             case 'hasDisabledMembers': return Array.isArray(disabledMembers) && disabledMembers.length > 0 ? 'نعم' : 'لا';
             case 'disabilityTypes': return disabilityTypes;
@@ -1232,6 +1273,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">رب الأسرة</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">رقم الهوية</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">أفراد الأسرة</th>
+                        <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">الأولوية</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">الحالة</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">تاريخ التسجيل</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">الإجراءات</th>
@@ -1258,6 +1300,41 @@ const AdminFamilies = memo(function AdminFamilies() {
                             <div className="text-sm font-medium text-foreground">{family.totalMembers || 0}</div>
                             <div className="text-xs text-muted-foreground">
                               {family.numMales || 0} ذكور، {family.numFemales || 0} إناث
+                            </div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4">
+                            <div className="flex flex-col items-center space-y-2">
+                              <Badge className={`${getPriorityColor(family.priority || 5)} text-white text-xs`}>
+                                {getPriorityInArabic(family.priority || 5)}
+                              </Badge>
+                              <div className="flex space-x-1 space-x-reverse">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (family.priority > 1) {
+                                      updatePriorityMutation.mutate({ familyId: family.id, priority: family.priority - 1 });
+                                    }
+                                  }}
+                                  className="w-6 h-6 p-0"
+                                  disabled={family.priority <= 1}
+                                >
+                                  <ChevronUp className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (family.priority < 5) {
+                                      updatePriorityMutation.mutate({ familyId: family.id, priority: family.priority + 1 });
+                                    }
+                                  }}
+                                  className="w-6 h-6 p-0"
+                                  disabled={family.priority >= 5}
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </td>
                           <td className="px-3 md:px-6 py-4">
@@ -1400,6 +1477,9 @@ const AdminFamilies = memo(function AdminFamilies() {
                       {familyDetails.warDamage2023 && <Badge variant="outline">متضرر</Badge>}
                       {familyDetails.isAbroad && <Badge className="bg-blue-100 text-blue-800">مغترب</Badge>}
                       {familyDetails.branch && <Badge className="bg-green-100 text-green-800">{getBranchInArabic(familyDetails.branch)}</Badge>}
+                      <Badge className={`${getPriorityColor(familyDetails.priority || 5)} text-white`}>
+                        {getPriorityInArabic(familyDetails.priority || 5)}
+                      </Badge>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>

@@ -186,6 +186,28 @@ export function getBooleanValueInArabic(value: boolean): string {
   return value ? "نعم" : "لا";
 }
 
+export function getPriorityInArabic(priority: number): string {
+  switch (priority) {
+    case 1: return 'أولوية قصوى';
+    case 2: return 'أولوية عالية';
+    case 3: return 'أولوية متوسطة';
+    case 4: return 'أولوية منخفضة';
+    case 5: return 'أولوية عادية';
+    default: return 'غير محدد';
+  }
+}
+
+export function getPriorityColor(priority: number): string {
+  switch (priority) {
+    case 1: return 'bg-red-500'; // Highest priority - red
+    case 2: return 'bg-orange-500'; // High priority - orange
+    case 3: return 'bg-yellow-500'; // Medium priority - yellow
+    case 4: return 'bg-blue-500'; // Low priority - blue
+    case 5: return 'bg-green-500'; // Normal priority - green
+    default: return 'bg-gray-500';
+  }
+}
+
 /**
  * Validate password against policy settings.
  * @param password The password to validate

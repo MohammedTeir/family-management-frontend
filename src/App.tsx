@@ -43,6 +43,7 @@ const VoucherDetails = lazy(() => import("./pages/admin/voucher-details"));
 const ImportHeads = lazy(() => import("./pages/admin/import-heads"));
 const AdminOrphans = lazy(() => import("./pages/admin/orphans"));
 const AdminMembers = lazy(() => import("./pages/admin/members"));
+const PriorityManagement = lazy(() => import("./pages/admin/priority-management"));
 
 // Loading component for lazy-loaded routes
 const RouteLoading = () => (
@@ -86,6 +87,7 @@ function Router() {
         <ProtectedRoute path="/admin/import-heads" component={ImportHeads} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/orphans" component={AdminOrphans} roles={['admin', 'root']} />
         <ProtectedRoute path="/admin/members" component={AdminMembers} roles={['admin', 'root']} />
+        <ProtectedRoute path="/admin/priority-management" component={PriorityManagement} roles={['admin', 'root']} />
       </Suspense>
       
       {/* Static 404 route */}
