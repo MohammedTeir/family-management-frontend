@@ -47,7 +47,6 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [memberAgeMax, setMemberAgeMax] = useState('');
   const [completenessFilter, setCompletenessFilter] = useState('all');
   const [hasRequestsFilter, setHasRequestsFilter] = useState('all');
-  const [includePriorityColor, setIncludePriorityColor] = useState(false);
   const [sortByPriority, setSortByPriority] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState('all');
   const { settings } = useSettingsContext();
@@ -900,84 +899,9 @@ const AdminFamilies = memo(function AdminFamilies() {
         const row = sheet.addRow(rowData);
         row.height = 25; // Increased row height for better readability
 
-        // Apply priority-based row coloring if the option is enabled
-        let priorityFillColor = null;
-        if (includePriorityColor) {
-          // Try to get priority from the family object first, then from rowData as fallback
-          let priorityNumber = 5; // Default to normal priority
-
-          // First try to get from family object
-          if (family.priority !== undefined && family.priority !== null) {
-            priorityNumber = family.priority;
-          } else {
-            // Fallback: find priority in rowData
-            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
-            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
-              const priorityValue = rowData[priorityIndex];
-              // Convert Arabic text back to number if needed
-              if (typeof priorityValue === 'string') {
-                if (priorityValue === 'أولوية قصوى') priorityNumber = 1;
-                else if (priorityValue === 'أولوية عالية') priorityNumber = 2;
-                else if (priorityValue === 'أولوية متوسطة') priorityNumber = 3;
-                else if (priorityValue === 'أولوية منخفضة') priorityNumber = 4;
-                else if (priorityValue === 'أولوية عادية') priorityNumber = 5;
-                else priorityNumber = 5; // Default to normal
-              } else if (typeof priorityValue === 'number') {
-                priorityNumber = Math.min(Math.max(priorityValue, 1), 5);
-              }
-            }
-          }
-
-          // Ensure priorityNumber is a valid number between 1 and 5
-          if (typeof priorityNumber === 'string') {
-            // If it's still in Arabic text format, convert it back to number
-            if (priorityNumber === 'أولوية قصوى') priorityNumber = 1;
-            else if (priorityNumber === 'أولوية عالية') priorityNumber = 2;
-            else if (priorityNumber === 'أولوية متوسطة') priorityNumber = 3;
-            else if (priorityNumber === 'أولوية منخفضة') priorityNumber = 4;
-            else if (priorityNumber === 'أولوية عادية') priorityNumber = 5;
-            else priorityNumber = 5; // Default to normal
-          } else if (typeof priorityNumber === 'number') {
-            // Ensure it's within valid range
-            priorityNumber = Math.min(Math.max(priorityNumber, 1), 5);
-          } else {
-            priorityNumber = 5; // Default to normal
-          }
-
-          // Debug: Log the priority number for this family
-          console.log('Family priority:', {
-            familyId: family.id,
-            familyName: family.husbandName,
-            familyPriority: family.priority,
-            rowDataPriority: rowData[selectedCols.findIndex(col => col.key === 'priority')],
-            priorityNumber: priorityNumber
-          });
-
-          // Set background color based on priority - using more distinct colors
-          switch (priorityNumber) {
-            case 1: // Highest priority - Dark Red
-              priorityFillColor = { argb: 'FFC62828' }; // Dark red (more visible)
-              break;
-            case 2: // High priority - Dark Orange
-              priorityFillColor = { argb: 'FFF57C00' }; // Dark orange (more visible)
-              break;
-            case 3: // Medium priority - Dark Yellow
-              priorityFillColor = { argb: 'FFF9A825' }; // Dark yellow (more visible)
-              break;
-            case 4: // Low priority - Dark Blue
-              priorityFillColor = { argb: 'FF1565C0' }; // Dark blue (more visible)
-              break;
-            case 5: // Normal priority - Dark Gray
-              priorityFillColor = { argb: 'FF757575' }; // Dark gray (more visible)
-              break;
-            default: // Default color
-              priorityFillColor = { argb: 'FFFFFFFF' }; // White
-          }
-        }
-
-        // First apply data styles to all cells
+        // Apply data styles to all cells (no priority coloring)
         row.eachCell((cell, colNumber) => {
-          // Apply data style first
+          // Apply data style
           cell.style = dataStyle;
           // Enable text wrapping for long content
           cell.alignment = {
@@ -985,82 +909,6 @@ const AdminFamilies = memo(function AdminFamilies() {
             wrapText: true
           };
         });
-
-        // Then apply priority colors to ensure they take precedence
-        if (includePriorityColor && priorityFillColor) {
-          // Recalculate priority number for font color logic
-          let currentPriorityNumber = 5; // Default to normal priority
-
-          // First try to get from family object
-          if (family.priority !== undefined && family.priority !== null) {
-            currentPriorityNumber = family.priority;
-          } else {
-            // Fallback: find priority in rowData
-            const priorityIndex = selectedCols.findIndex(col => col.key === 'priority');
-            if (priorityIndex !== -1 && priorityIndex < rowData.length) {
-              const priorityValue = rowData[priorityIndex];
-              // Convert Arabic text back to number if needed
-              if (typeof priorityValue === 'string') {
-                if (priorityValue === 'أولوية قصوى') currentPriorityNumber = 1;
-                else if (priorityValue === 'أولوية عالية') currentPriorityNumber = 2;
-                else if (priorityValue === 'أولوية متوسطة') currentPriorityNumber = 3;
-                else if (priorityValue === 'أولوية منخفضة') currentPriorityNumber = 4;
-                else if (priorityValue === 'أولوية عادية') currentPriorityNumber = 5;
-                else currentPriorityNumber = 5;
-              } else if (typeof priorityValue === 'number') {
-                currentPriorityNumber = Math.min(Math.max(priorityValue, 1), 5);
-              }
-            }
-          }
-
-          // Ensure currentPriorityNumber is a valid number between 1 and 5
-          if (typeof currentPriorityNumber === 'string') {
-            if (currentPriorityNumber === 'أولوية قصوى') currentPriorityNumber = 1;
-            else if (currentPriorityNumber === 'أولوية عالية') currentPriorityNumber = 2;
-            else if (currentPriorityNumber === 'أولوية متوسطة') currentPriorityNumber = 3;
-            else if (currentPriorityNumber === 'أولوية منخفضة') currentPriorityNumber = 4;
-            else if (currentPriorityNumber === 'أولوية عادية') currentPriorityNumber = 5;
-            else currentPriorityNumber = 5;
-          } else if (typeof currentPriorityNumber === 'number') {
-            currentPriorityNumber = Math.min(Math.max(currentPriorityNumber, 1), 5);
-          } else {
-            currentPriorityNumber = 5;
-          }
-
-          console.log('Applying priority color to row:', {
-            familyId: family.id,
-            familyName: family.husbandName,
-            priorityNumber: currentPriorityNumber,
-            color: priorityFillColor,
-            columnsCount: selectedCols.length
-          });
-
-          for (let i = 1; i <= selectedCols.length; i++) {
-            const cell = row.getCell(i);
-            // Apply the fill color with more explicit properties for Excel
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: priorityFillColor.argb },
-              bgColor: { argb: priorityFillColor.argb }
-            };
-
-            // Ensure the color is applied by setting the font color to contrast appropriately
-            if (currentPriorityNumber === 5) { // For gray background, use black text
-              cell.font = { color: { argb: 'FF000000' } }; // Black text
-            } else { // For colored backgrounds, ensure good contrast
-              cell.font = { color: { argb: 'FF000000' } }; // Black text for contrast
-            }
-
-            // Additional styling to ensure visibility
-            cell.border = {
-              top: { style: 'thin', color: { argb: 'FF000000' } },
-              left: { style: 'thin', color: { argb: 'FF000000' } },
-              bottom: { style: 'thin', color: { argb: 'FF000000' } },
-              right: { style: 'thin', color: { argb: 'FF000000' } }
-            };
-          }
-        }
       });
       // Set intelligent column widths based on content type
       const getColumnWidth = (columnKey: string): number => {
@@ -1933,18 +1781,6 @@ const AdminFamilies = memo(function AdminFamilies() {
                   />
                 </div>
 
-                <div className="mb-4 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="includePriorityColor"
-                    checked={includePriorityColor}
-                    onChange={(e) => setIncludePriorityColor(e.target.checked)}
-                    className="h-4 w-4 text-primary accent-primary focus:ring-primary"
-                  />
-                  <label htmlFor="includePriorityColor" className="mr-2 text-sm font-medium text-foreground">
-                    تلوين الصفوف حسب الأولوية
-                  </label>
-                </div>
 
                 <div className="mb-4 flex items-center">
                   <input
