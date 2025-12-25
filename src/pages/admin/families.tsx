@@ -48,6 +48,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [completenessFilter, setCompletenessFilter] = useState('all');
   const [hasRequestsFilter, setHasRequestsFilter] = useState('all');
   const [includePriorityColor, setIncludePriorityColor] = useState(false);
+  const [sortByPriority, setSortByPriority] = useState(false);
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -593,8 +594,19 @@ const AdminFamilies = memo(function AdminFamilies() {
           wrapText: true
         };
       });
+      // Sort families by priority if the option is enabled
+      let familiesForExport = [...(Array.isArray(filteredFamilies) ? filteredFamilies : [])];
+      if (sortByPriority) {
+        familiesForExport.sort((a, b) => {
+          // Sort by priority (ascending: 1, 2, 3, 4, 5 - highest to lowest)
+          const priorityA = a.priority || 5;
+          const priorityB = b.priority || 5;
+          return priorityA - priorityB;
+        });
+      }
+
       // Data rows
-      (Array.isArray(filteredFamilies) ? filteredFamilies : []).forEach(family => {
+      familiesForExport.forEach(family => {
         const members: any[] = Array.isArray(family?.members) ? family.members : [];
         const orphans: any[] = Array.isArray(family?.orphans) ? family.orphans : [];
         // Combine members and orphans for export purposes
@@ -1795,6 +1807,19 @@ const AdminFamilies = memo(function AdminFamilies() {
                   />
                   <label htmlFor="includePriorityColor" className="mr-2 text-sm font-medium text-foreground">
                     تلوين الصفوف حسب الأولوية
+                  </label>
+                </div>
+
+                <div className="mb-4 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="sortByPriority"
+                    checked={sortByPriority}
+                    onChange={(e) => setSortByPriority(e.target.checked)}
+                    className="h-4 w-4 text-primary accent-primary focus:ring-primary"
+                  />
+                  <label htmlFor="sortByPriority" className="mr-2 text-sm font-medium text-foreground">
+                    فرز حسب الأولوية
                   </label>
                 </div>
 

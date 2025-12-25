@@ -27,6 +27,7 @@ const PriorityManagement = memo(function PriorityManagement() {
   // Excel export states
   const [isExcelDialogOpen, setIsExcelDialogOpen] = useState(false);
   const [includePriorityColor, setIncludePriorityColor] = useState(false);
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
 
   useEffect(() => {
@@ -145,8 +146,19 @@ const PriorityManagement = memo(function PriorityManagement() {
         };
       });
 
+      // Sort families by priority if the option is enabled
+      let familiesForExport = [...filteredFamilies];
+      if (sortByPriority) {
+        familiesForExport.sort((a, b) => {
+          // Sort by priority (ascending: 1, 2, 3, 4, 5 - highest to lowest)
+          const priorityA = a.priority || 5;
+          const priorityB = b.priority || 5;
+          return priorityA - priorityB;
+        });
+      }
+
       // Data rows
-      filteredFamilies.forEach(family => {
+      familiesForExport.forEach(family => {
         const rowData = [
           family.id,
           family.husbandName,
@@ -490,6 +502,19 @@ const PriorityManagement = memo(function PriorityManagement() {
                 />
                 <label htmlFor="includePriorityColor" className="mr-2 text-sm font-medium text-foreground">
                   تلوين الصفوف حسب الأولوية
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="sortByPriority"
+                  checked={sortByPriority}
+                  onChange={(e) => setSortByPriority(e.target.checked)}
+                  className="h-4 w-4 text-primary accent-primary focus:ring-primary"
+                />
+                <label htmlFor="sortByPriority" className="mr-2 text-sm font-medium text-foreground">
+                  فرز حسب الأولوية
                 </label>
               </div>
 
