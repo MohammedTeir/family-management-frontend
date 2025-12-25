@@ -1028,8 +1028,11 @@ const AdminFamilies = memo(function AdminFamilies() {
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
+      document.body.appendChild(link);
       link.click();
-      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      // Revoke the object URL after a delay to ensure download starts
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
       toast({ title: 'تم التصدير بنجاح', description: `تم حفظ ملف Excel باسم: ${fileName}`, variant: 'default' });
       // Reset custom filename after successful export
       setCustomFileName('');
