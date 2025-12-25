@@ -49,6 +49,7 @@ const AdminFamilies = memo(function AdminFamilies() {
   const [hasRequestsFilter, setHasRequestsFilter] = useState('all');
   const [includePriorityColor, setIncludePriorityColor] = useState(false);
   const [sortByPriority, setSortByPriority] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const { settings } = useSettingsContext();
 
   useEffect(() => {
@@ -369,11 +370,14 @@ const AdminFamilies = memo(function AdminFamilies() {
                                 (hasRequestsFilter === 'yes' && hasRequests) ||
                                 (hasRequestsFilter === 'no' && !hasRequests);
 
+      // Priority filter logic
+      const matchesPriority = priorityFilter === 'all' || family.priority === parseInt(priorityFilter);
+
       return matchesSearch && matchesBranch && matchesDisplaced &&
              matchesDamaged && matchesAbroad && matchesSocialStatus && matchesMembers &&
-             matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness && matchesHasRequests;
+             matchesPregnant && matchesChildren && matchesMemberAge && matchesCompleteness && matchesHasRequests && matchesPriority;
     });
-  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax, completenessFilter, hasRequestsFilter]);
+  }, [families, searchTerm, branchFilter, displacedFilter, damagedFilter, abroadFilter, socialStatusFilter, pregnantFilter, childrenFilter, membersFilter, membersMinCount, membersMaxCount, childrenMinCount, childrenMaxCount, memberAgeMin, memberAgeMax, completenessFilter, hasRequestsFilter, priorityFilter]);
 
   // 🚀 PERFORMANCE: Memoize expensive max counts calculation
   const { maxSons, maxChildren, maxWives, maxOrphans } = useMemo(() => {
@@ -556,12 +560,12 @@ const AdminFamilies = memo(function AdminFamilies() {
       const sheet = workbook.addWorksheet('قائمة الأسر', {views: [{rightToLeft: true}] });
       // Styles
       const titleStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
-        font: { color: { argb: 'FF000000' }, bold: true, size: 16 }, // Black text
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4CAF50' } }, // Green color for title
+        font: { color: { argb: 'FFFFFFFF' }, bold: true, size: 16 }, // White text
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
       const headerStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF81C784' } }, // Light green color for headers
         font: { color: { argb: 'FF000000' }, bold: true, size: 12 }, // Black text
         alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
         border: { top: { style: 'thin' as ExcelJS.BorderStyle }, bottom: { style: 'thin' as ExcelJS.BorderStyle }, left: { style: 'thin' as ExcelJS.BorderStyle }, right: { style: 'thin' as ExcelJS.BorderStyle } }
@@ -932,8 +936,8 @@ const AdminFamilies = memo(function AdminFamilies() {
                 case 4: // Low priority - Blue
                   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90CAF9' } }; // Light blue
                   break;
-                case 5: // Normal priority - Green
-                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }; // Light green
+                case 5: // Normal priority - Very light gray (subtle, less prominent)
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } }; // Very light gray
                   break;
                 default: // Default color
                   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
@@ -1304,6 +1308,22 @@ const AdminFamilies = memo(function AdminFamilies() {
                         dir="rtl"
                       />
                     </div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <label className="mb-1 text-sm text-foreground text-center w-full">الأولوية</label>
+                    <Select value={priorityFilter} onValueChange={setPriorityFilter} dir="rtl">
+                      <SelectTrigger className="w-full text-right" dir="rtl">
+                        <SelectValue className="text-right" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="all">جميع الأولويات</SelectItem>
+                        <SelectItem value="1">أولوية قصوى</SelectItem>
+                        <SelectItem value="2">أولوية عالية</SelectItem>
+                        <SelectItem value="3">أولوية متوسطة</SelectItem>
+                        <SelectItem value="4">أولوية منخفضة</SelectItem>
+                        <SelectItem value="5">أولوية عادية</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
