@@ -916,11 +916,11 @@ const AdminFamilies = memo(function AdminFamilies() {
           // Ensure priorityNumber is a valid number between 1 and 5
           if (typeof priorityNumber === 'string') {
             // If it's still in Arabic text format, convert it back to number
-            if (priorityNumber === 'أولوية قصوى' || priorityNumber === 1) priorityNumber = 1;
-            else if (priorityNumber === 'أولوية عالية' || priorityNumber === 2) priorityNumber = 2;
-            else if (priorityNumber === 'أولوية متوسطة' || priorityNumber === 3) priorityNumber = 3;
-            else if (priorityNumber === 'أولوية منخفضة' || priorityNumber === 4) priorityNumber = 4;
-            else if (priorityNumber === 'أولوية عادية' || priorityNumber === 5) priorityNumber = 5;
+            if (priorityNumber === 'أولوية قصوى') priorityNumber = 1;
+            else if (priorityNumber === 'أولوية عالية') priorityNumber = 2;
+            else if (priorityNumber === 'أولوية متوسطة') priorityNumber = 3;
+            else if (priorityNumber === 'أولوية منخفضة') priorityNumber = 4;
+            else if (priorityNumber === 'أولوية عادية') priorityNumber = 5;
             else priorityNumber = 5; // Default to normal
           } else if (typeof priorityNumber === 'number') {
             // Ensure it's within valid range
@@ -928,6 +928,14 @@ const AdminFamilies = memo(function AdminFamilies() {
           } else {
             priorityNumber = 5; // Default to normal
           }
+
+          // Debug: Log the priority number for this family
+          console.log('Family priority:', {
+            familyId: family.id,
+            familyName: family.husbandName,
+            priorityValue: family.priority,
+            priorityNumber: priorityNumber
+          });
 
           let fillColor = { argb: 'FFFFFFFF' }; // Default white color
           // Set background color based on priority
