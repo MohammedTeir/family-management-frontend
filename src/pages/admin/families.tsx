@@ -1316,6 +1316,7 @@ const AdminFamilies = memo(function AdminFamilies() {
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">رب الأسرة</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">رقم الهوية</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">أفراد الأسرة</th>
+                        <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">عدد الطلبات</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">الأولوية</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">الحالة</th>
                         <th className="px-3 md:px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">تاريخ التسجيل</th>
@@ -1344,6 +1345,11 @@ const AdminFamilies = memo(function AdminFamilies() {
                             <div className="text-xs text-muted-foreground">
                               {family.numMales || 0} ذكور، {family.numFemales || 0} إناث
                             </div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap text-center">
+                            <Badge variant="secondary" className="text-xs">
+                              {Array.isArray(family.requests) ? family.requests.length : 0}
+                            </Badge>
                           </td>
                           <td className="px-3 md:px-6 py-4">
                             <div className="flex flex-col items-center space-y-2">

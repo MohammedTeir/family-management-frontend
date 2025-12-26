@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Edit } from "lucide-react";
-import { FileText, Search, Eye, Check, X, Clock, Filter } from "lucide-react";
+import ExcelJS from 'exceljs';
+import { FileText, Search, Eye, Check, X, Clock, Filter, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getRequestStatusInArabic, getRequestTypeInArabic, formatDate } from "@/lib/utils";
@@ -22,6 +23,8 @@ export default function AdminRequests() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [adminComment, setAdminComment] = useState("");
@@ -79,7 +82,12 @@ export default function AdminRequests() {
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     const matchesType = typeFilter === "all" || request.type === typeFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
+    // Date filter logic
+    const requestDate = new Date(request.createdAt);
+    const matchesStartDate = !startDateFilter || requestDate >= new Date(startDateFilter);
+    const matchesEndDate = !endDateFilter || requestDate <= new Date(endDateFilter);
+
+    return matchesSearch && matchesStatus && matchesType && matchesStartDate && matchesEndDate;
   }) : [];
 
   const totalPages = Math.ceil(filteredRequests.length / pageSize);
@@ -147,6 +155,161 @@ export default function AdminRequests() {
       document.body.dir = settings.language === 'ar' ? 'rtl' : 'ltr';
     }
   }, [settings.siteTitle, settings.language]);
+
+  // Export to Excel function
+  const exportToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('الطلبات', { views: [{ rightToLeft: true }] });
+
+      // Define styles
+      const titleStyle: Partial<ExcelJS.Style> = {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        font: { color: { argb: 'FF000000' }, bold: true, size: 16 }, // Black text
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+
+      const headerStyle: Partial<ExcelJS.Style> = {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        font: { color: { argb: 'FF000000' }, bold: true, size: 12 }, // Black text
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: {
+          top: { style: 'thin' as ExcelJS.BorderStyle },
+          bottom: { style: 'thin' as ExcelJS.BorderStyle },
+          left: { style: 'thin' as ExcelJS.BorderStyle },
+          right: { style: 'thin' as ExcelJS.BorderStyle }
+        }
+      };
+
+      const dataStyle: Partial<ExcelJS.Style> = {
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: {
+          top: { style: 'thin' as ExcelJS.BorderStyle },
+          bottom: { style: 'thin' as ExcelJS.BorderStyle },
+          left: { style: 'thin' as ExcelJS.BorderStyle },
+          right: { style: 'thin' as ExcelJS.BorderStyle }
+        }
+      };
+
+      // Define headers in Arabic
+      const headers = [
+        { header: 'رقم الطلب', key: 'id', width: 10 },
+        { header: 'نوع الطلب', key: 'type', width: 15 },
+        { header: 'الوصف', key: 'description', width: 40 },
+        { header: 'التاريخ', key: 'createdAt', width: 15 },
+        { header: 'الحالة', key: 'status', width: 15 },
+        { header: 'اسم رب الأسرة', key: 'familyName', width: 20 },
+        { header: 'رقم هوية رب الأسرة', key: 'familyId', width: 20 },
+        { header: 'تعليق إداري', key: 'adminComment', width: 30 },
+      ];
+
+      worksheet.columns = headers;
+
+      // Create title row
+      const titleCells = Array(headers.length).fill('');
+      titleCells[0] = 'قائمة الطلبات (تصدير)';
+      const titleRow = worksheet.addRow(titleCells);
+      titleRow.height = 30;
+      const lastColLetter = worksheet.getColumn(headers.length).letter;
+      worksheet.mergeCells(`A1:${lastColLetter}1`);
+      titleRow.getCell(1).style = titleStyle;
+      titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // Create header row
+      const headerRow = worksheet.addRow(headers.map(col => col.header));
+      headerRow.height = 35;
+      headerRow.eachCell(cell => {
+        cell.style = headerStyle;
+        cell.alignment = {
+          ...headerStyle.alignment,
+          wrapText: true
+        };
+      });
+
+      // Add filtered requests data to the worksheet
+      filteredRequests.forEach((request: any) => {
+        let family = request.family;
+        if (!family && Array.isArray(families)) {
+          family = families.find((f: any) => f.id === request.familyId);
+        }
+
+        worksheet.addRow({
+          id: request.id,
+          type: getRequestTypeInArabic(request.type),
+          description: request.description,
+          createdAt: formatDate(request.createdAt),
+          status: getRequestStatusInArabic(request.status),
+          familyName: family?.husbandName || '',
+          familyId: family?.husbandID || '',
+          adminComment: request.adminComment || '',
+        });
+      });
+
+      // Apply data styles to all rows
+      const startRow = 3; // Title and header rows are 1 and 2
+      for (let i = startRow; i <= worksheet.rowCount; i++) {
+        const row = worksheet.getRow(i);
+        row.height = 25;
+        row.eachCell(cell => {
+          cell.style = dataStyle;
+          cell.alignment = {
+            ...dataStyle.alignment,
+            wrapText: true
+          };
+        });
+      }
+
+      // Auto-adjust column widths based on content type
+      worksheet.columns.forEach((column, index) => {
+        const headerKey = headers[index].key;
+        // Extra wide columns for names and long text fields
+        if (headerKey.includes('description') || headerKey.includes('adminComment')) {
+          column.width = 40; // Extra wide for description and comments
+        }
+        // Medium-wide columns for names
+        else if (headerKey.includes('familyName')) {
+          column.width = 28; // Medium-wide for Arabic names
+        }
+        // Medium columns for dates
+        else if (headerKey.includes('createdAt')) {
+          column.width = 24; // Medium for dates
+        }
+        // Medium-narrow columns for IDs and status
+        else if (headerKey.includes('id') || headerKey.includes('familyId') || headerKey.includes('status') || headerKey.includes('type')) {
+          column.width = 20; // Medium-narrow for IDs and status
+        }
+        // Default width
+        else {
+          column.width = 15;
+        }
+      });
+
+      // Generate and download the file
+      const fileName = `طلبات_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "تم التصدير بنجاح",
+        description: `تم حفظ ملف Excel باسم: ${fileName}`,
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "خطأ في التصدير",
+        description: "حدث خطأ أثناء تصدير البيانات إلى Excel",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -249,8 +412,8 @@ export default function AdminRequests() {
                     className="pr-10 w-full"
                   />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2 md:col-span-2 md:grid-cols-2">
+
+                <div className="grid grid-cols-2 gap-2 md:col-span-2 md:grid-cols-3">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
                       <SelectValue placeholder="تصفية بالحالة" />
@@ -262,7 +425,7 @@ export default function AdminRequests() {
                       <SelectItem value="rejected">مرفوضة</SelectItem>
                     </SelectContent>
                   </Select>
-                  
+
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
                     <SelectTrigger>
                       <SelectValue placeholder="تصفية بالنوع" />
@@ -274,6 +437,23 @@ export default function AdminRequests() {
                       <SelectItem value="damage">تقرير أضرار</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <div className="flex gap-2">
+                    <Input
+                      type="date"
+                      value={startDateFilter}
+                      onChange={(e) => setStartDateFilter(e.target.value)}
+                      className="w-full"
+                      max={endDateFilter || undefined}
+                    />
+                    <Input
+                      type="date"
+                      value={endDateFilter}
+                      onChange={(e) => setEndDateFilter(e.target.value)}
+                      className="w-full"
+                      min={startDateFilter || undefined}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -281,8 +461,12 @@ export default function AdminRequests() {
 
           {/* Requests Table */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle>قائمة الطلبات ({filteredRequests.length})</CardTitle>
+              <Button onClick={exportToExcel} className="w-full sm:w-auto">
+                <Download className="h-4 w-4 mr-2" />
+                تصدير إلى Excel
+              </Button>
             </CardHeader>
             <CardContent>
               {filteredRequests.length > 0 ? (
