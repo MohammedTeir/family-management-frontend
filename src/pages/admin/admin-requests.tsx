@@ -83,10 +83,10 @@ export default function AdminRequests() {
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     const matchesType = typeFilter === "all" || request.type === typeFilter;
 
-    // Date filter logic
+    // Date filter logic - ensure proper date comparison by creating date objects at start of day for start date and end of day for end date
     const requestDate = new Date(request.createdAt);
-    const matchesStartDate = !startDateFilter || requestDate >= new Date(startDateFilter);
-    const matchesEndDate = !endDateFilter || requestDate <= new Date(endDateFilter);
+    const matchesStartDate = !startDateFilter || requestDate >= new Date(startDateFilter + 'T00:00:00');
+    const matchesEndDate = !endDateFilter || requestDate <= new Date(endDateFilter + 'T23:59:59');
 
     return matchesSearch && matchesStatus && matchesType && matchesStartDate && matchesEndDate;
   }) : [];
@@ -273,7 +273,15 @@ export default function AdminRequests() {
               rowData[col.key] = request.description;
               break;
             case 'createdAt':
-              rowData[col.key] = formatDate(request.createdAt);
+              // Format date with time for Excel export - Arabic locale with full date and time
+              const date = new Date(request.createdAt);
+              rowData[col.key] = date.toLocaleDateString('ar-EG', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
               break;
             case 'status':
               rowData[col.key] = getRequestStatusInArabic(request.status);
