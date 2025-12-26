@@ -27,6 +27,7 @@ export default function AdminRequests() {
   const [endDateFilter, setEndDateFilter] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [adminComment, setAdminComment] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -156,6 +157,46 @@ export default function AdminRequests() {
     }
   }, [settings.siteTitle, settings.language]);
 
+  // Excel column configuration for export
+  const excelColumns = [
+    { key: 'id', label: 'رقم الطلب', checked: true },
+    { key: 'type', label: 'نوع الطلب', checked: true },
+    { key: 'description', label: 'الوصف', checked: true },
+    { key: 'createdAt', label: 'التاريخ', checked: true },
+    { key: 'status', label: 'الحالة', checked: true },
+    { key: 'familyName', label: 'اسم رب الأسرة', checked: true },
+    { key: 'familyId', label: 'رقم هوية رب الأسرة', checked: true },
+    { key: 'adminComment', label: 'تعليق إداري', checked: true },
+  ];
+
+  const [checkedColumns, setCheckedColumns] = useState<{ [key: string]: boolean }>({});
+
+  // Sync checkedColumns with available columns
+  useEffect(() => {
+    setCheckedColumns(prev => {
+      const next: { [key: string]: boolean } = {};
+      for (const col of excelColumns) {
+        next[col.key] = prev[col.key] !== undefined ? prev[col.key] : col.checked;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleExcelColumnChange = (key: string) => {
+    setCheckedColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSelectAll = () => {
+    setCheckedColumns(Object.fromEntries(excelColumns.map(col => [col.key, true])));
+  };
+
+  const handleDeselectAll = () => {
+    setCheckedColumns(Object.fromEntries(excelColumns.map(col => [col.key, false])));
+  };
+
+  // For export
+  const selectedCols = excelColumns.filter(col => checkedColumns[col.key]);
+
   // Export to Excel function
   const exportToExcel = async () => {
     try {
@@ -164,13 +205,13 @@ export default function AdminRequests() {
 
       // Define styles
       const titleStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
-        font: { color: { argb: 'FF000000' }, bold: true, size: 16 }, // Black text
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4CAF50' } }, // Green color for title
+        font: { color: { argb: 'FFFFFFFF' }, bold: true, size: 16 }, // White text
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       const headerStyle: Partial<ExcelJS.Style> = {
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC8E6C9' } }, // Light green color (accent 6, lighter 60%)
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF81C784' } }, // Light green color for headers
         font: { color: { argb: 'FF000000' }, bold: true, size: 12 }, // Black text
         alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
         border: {
@@ -191,32 +232,18 @@ export default function AdminRequests() {
         }
       };
 
-      // Define headers in Arabic
-      const headers = [
-        { header: 'رقم الطلب', key: 'id', width: 10 },
-        { header: 'نوع الطلب', key: 'type', width: 15 },
-        { header: 'الوصف', key: 'description', width: 40 },
-        { header: 'التاريخ', key: 'createdAt', width: 15 },
-        { header: 'الحالة', key: 'status', width: 15 },
-        { header: 'اسم رب الأسرة', key: 'familyName', width: 20 },
-        { header: 'رقم هوية رب الأسرة', key: 'familyId', width: 20 },
-        { header: 'تعليق إداري', key: 'adminComment', width: 30 },
-      ];
-
-      worksheet.columns = headers;
-
       // Create title row
-      const titleCells = Array(headers.length).fill('');
+      const titleCells = Array(selectedCols.length).fill('');
       titleCells[0] = 'قائمة الطلبات (تصدير)';
       const titleRow = worksheet.addRow(titleCells);
       titleRow.height = 30;
-      const lastColLetter = worksheet.getColumn(headers.length).letter;
+      const lastColLetter = worksheet.getColumn(selectedCols.length).letter;
       worksheet.mergeCells(`A1:${lastColLetter}1`);
       titleRow.getCell(1).style = titleStyle;
       titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
       // Create header row
-      const headerRow = worksheet.addRow(headers.map(col => col.header));
+      const headerRow = worksheet.addRow(selectedCols.map(c => c.label));
       headerRow.height = 35;
       headerRow.eachCell(cell => {
         cell.style = headerStyle;
@@ -233,16 +260,39 @@ export default function AdminRequests() {
           family = families.find((f: any) => f.id === request.familyId);
         }
 
-        worksheet.addRow({
-          id: request.id,
-          type: getRequestTypeInArabic(request.type),
-          description: request.description,
-          createdAt: formatDate(request.createdAt),
-          status: getRequestStatusInArabic(request.status),
-          familyName: family?.husbandName || '',
-          familyId: family?.husbandID || '',
-          adminComment: request.adminComment || '',
+        const rowData: any = {};
+        selectedCols.forEach(col => {
+          switch (col.key) {
+            case 'id':
+              rowData[col.key] = request.id;
+              break;
+            case 'type':
+              rowData[col.key] = getRequestTypeInArabic(request.type);
+              break;
+            case 'description':
+              rowData[col.key] = request.description;
+              break;
+            case 'createdAt':
+              rowData[col.key] = formatDate(request.createdAt);
+              break;
+            case 'status':
+              rowData[col.key] = getRequestStatusInArabic(request.status);
+              break;
+            case 'familyName':
+              rowData[col.key] = family?.husbandName || '';
+              break;
+            case 'familyId':
+              rowData[col.key] = family?.husbandID || '';
+              break;
+            case 'adminComment':
+              rowData[col.key] = request.adminComment || '';
+              break;
+            default:
+              rowData[col.key] = '';
+          }
         });
+
+        worksheet.addRow(rowData);
       });
 
       // Apply data styles to all rows
@@ -261,7 +311,7 @@ export default function AdminRequests() {
 
       // Auto-adjust column widths based on content type
       worksheet.columns.forEach((column, index) => {
-        const headerKey = headers[index].key;
+        const headerKey = selectedCols[index].key;
         // Extra wide columns for names and long text fields
         if (headerKey.includes('description') || headerKey.includes('adminComment')) {
           column.width = 40; // Extra wide for description and comments
@@ -438,21 +488,27 @@ export default function AdminRequests() {
                     </SelectContent>
                   </Select>
 
-                  <div className="flex gap-2">
-                    <Input
-                      type="date"
-                      value={startDateFilter}
-                      onChange={(e) => setStartDateFilter(e.target.value)}
-                      className="w-full"
-                      max={endDateFilter || undefined}
-                    />
-                    <Input
-                      type="date"
-                      value={endDateFilter}
-                      onChange={(e) => setEndDateFilter(e.target.value)}
-                      className="w-full"
-                      min={startDateFilter || undefined}
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">من تاريخ</label>
+                      <Input
+                        type="date"
+                        value={startDateFilter}
+                        onChange={(e) => setStartDateFilter(e.target.value)}
+                        className="w-full"
+                        max={endDateFilter || undefined}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">إلى تاريخ</label>
+                      <Input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={(e) => setEndDateFilter(e.target.value)}
+                        className="w-full"
+                        min={startDateFilter || undefined}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -463,7 +519,7 @@ export default function AdminRequests() {
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle>قائمة الطلبات ({filteredRequests.length})</CardTitle>
-              <Button onClick={exportToExcel} className="w-full sm:w-auto">
+              <Button onClick={() => setIsExportDialogOpen(true)} className="w-full sm:w-auto">
                 <Download className="h-4 w-4 mr-2" />
                 تصدير إلى Excel
               </Button>
@@ -821,6 +877,62 @@ export default function AdminRequests() {
                     </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Excel Export Dialog */}
+          <Dialog
+            open={isExportDialogOpen}
+            onOpenChange={(open) => {
+              setIsExportDialogOpen(open);
+            }}
+          >
+            <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw] overflow-y-auto">
+              <DialogHeader className="px-4 sm:px-6">
+                <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold">
+                  <Download className="h-5 w-5" />
+                  <span>تصدير بيانات الطلبات إلى Excel</span>
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground text-right">
+                  حدد الأعمدة التي ترغب في تضمينها في التصدير
+                </p>
+              </DialogHeader>
+
+              <div className="px-4 sm:px-6 py-4">
+                <div className="flex justify-end gap-2 mb-4">
+                  <Button type="button" variant="outline" onClick={handleSelectAll} className="text-sm">
+                    تحديد الكل
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleDeselectAll} className="text-sm">
+                    إلغاء التحديد
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" dir="rtl">
+                  {excelColumns.map((col, idx) => (
+                    <label
+                      key={col.key}
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all select-none shadow-sm ${checkedColumns[col.key] ? 'bg-green-50 border-green-500 text-green-800 font-bold ring-2 ring-green-200' : 'bg-white border-gray-200 text-gray-700 hover:border-green-300'}`}
+                      style={{ order: idx + 1 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedColumns[col.key]}
+                        onChange={() => handleExcelColumnChange(col.key)}
+                        className="accent-green-600 w-4 h-4"
+                      />
+                      <span className="text-sm">{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button onClick={exportToExcel} className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    <span>تصدير إلى Excel</span>
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
               </div>
